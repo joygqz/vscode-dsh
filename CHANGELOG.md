@@ -1,5 +1,9 @@
 # 更新日志
 
+## 0.1.1 — 2026-08-14
+
+- displayName 更名为 DeepSeek Harness Launcher（原名已被市场占用；OVSX 上 0.1.0 无法覆盖，故以新版本发布）
+
 ## 0.1.0 — 2026-08-14
 
 - 发布配置对齐 joygqz 账户：publisher、repository、`ext:package`/`ext:publish` 脚本、bumpp 自动版本发布

@@ -2,7 +2,7 @@
   "name": "vscode-dsh",
   "displayName": "DeepSeek Harness Launcher",
   "description": "Launch the DeepSeek Harness web GUI from VS Code: one click starts the server (npx @deepseek-ai/dsh web) and opens it — no manual terminal or browser step.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "joygqz",
   "repository": {
     "type": "git",
