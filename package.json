@@ -1,0 +1,183 @@
+{
+  "name": "vscode-dsh",
+  "displayName": "DeepSeek Harness",
+  "description": "Launch the DeepSeek Harness web GUI from VS Code: one click starts the server (npx @deepseek-ai/dsh web) and opens it — no manual terminal or browser step.",
+  "version": "0.1.0",
+  "publisher": "joygqz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joygqz/vscode-dsh.git"
+  },
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "main": "./dist/extension.cjs",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "deepseek-harness",
+    "ai",
+    "gui",
+    "launcher"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "dsh.start",
+        "title": "启动并打开 GUI",
+        "category": "DeepSeek Harness"
+      },
+      {
+        "command": "dsh.startServer",
+        "title": "仅启动服务",
+        "category": "DeepSeek Harness"
+      },
+      {
+        "command": "dsh.openBrowser",
+        "title": "在浏览器中打开",
+        "category": "DeepSeek Harness"
+      },
+      {
+        "command": "dsh.openWebview",
+        "title": "在 Webview 面板中打开",
+        "category": "DeepSeek Harness"
+      },
+      {
+        "command": "dsh.stop",
+        "title": "停止服务",
+        "category": "DeepSeek Harness"
+      },
+      {
+        "command": "dsh.restart",
+        "title": "重启服务",
+        "category": "DeepSeek Harness"
+      },
+      {
+        "command": "dsh.copyUrl",
+        "title": "复制 GUI 地址",
+        "category": "DeepSeek Harness"
+      },
+      {
+        "command": "dsh.showLogs",
+        "title": "显示日志",
+        "category": "DeepSeek Harness"
+      }
+    ],
+    "configuration": {
+      "title": "DeepSeek Harness",
+      "properties": {
+        "dsh.command": {
+          "type": "string",
+          "default": "npx",
+          "markdownDescription": "启动命令（可执行文件）。默认 `npx`，配合 `dsh.args` 使用；也可改为本地可执行文件路径（例如本地 checkout 构建出的 `dsh`）。"
+        },
+        "dsh.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "--yes",
+            "@deepseek-ai/dsh",
+            "web"
+          ],
+          "markdownDescription": "传给 `dsh.command` 的参数。`dsh` 的 `--host`/`--port` 由本扩展按 `dsh.host`/`dsh.port` 自动追加在末尾。如需固定版本，把 `@deepseek-ai/dsh` 改成 `@deepseek-ai/dsh@0.1.0-rc.6` 即可。"
+        },
+        "dsh.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "markdownDescription": "Web 服务绑定地址（对应 `dsh web --host`）。"
+        },
+        "dsh.port": {
+          "type": "number",
+          "default": 3080,
+          "minimum": 0,
+          "maximum": 65535,
+          "markdownDescription": "Web 服务端口（对应 `dsh web --port`）。设为 0 表示由系统自动选择空闲端口。"
+        },
+        "dsh.extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "追加在末尾的其它 `dsh web` 参数，例如 `--patch`、`--trusted-host`。"
+        },
+        "dsh.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "VS Code 启动后自动启动 DeepSeek Harness 服务。"
+        },
+        "dsh.autoOpen": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "服务就绪后自动打开 GUI（按 `dsh.openMode` 指定的方式）。"
+        },
+        "dsh.openMode": {
+          "type": "string",
+          "enum": [
+            "browser",
+            "webview"
+          ],
+          "enumDescriptions": [
+            "用系统默认浏览器打开",
+            "在 VS Code 内置的 Webview 面板中打开"
+          ],
+          "default": "browser",
+          "markdownDescription": "打开 GUI 的方式。"
+        },
+        "dsh.startupTimeout": {
+          "type": "number",
+          "default": 90,
+          "minimum": 5,
+          "markdownDescription": "等待服务就绪的最长秒数。首次运行 `npx` 需要下载依赖，可适当调大。"
+        },
+        "dsh.stopOnExit": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "退出 VS Code 时停止由本扩展启动的服务（对已在别处运行的服务无效）。"
+        },
+        "dsh.workspace": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "启动 dsh 时的工作目录（dsh 的会话与工作区关联）。留空则使用 VS Code 当前工作区，没有工作区时使用主目录。"
+        },
+        "dsh.env": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "启动时额外注入的环境变量，例如 `{ \"DSH_HOME\": \"/custom/path\" }`。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run build",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "compile": "tsc -p ./tsconfig.json --noEmit",
+    "test": "vitest run",
+    "package": "vsce package",
+    "ext:package": "vsce package",
+    "ext:publish": "vsce publish",
+    "release": "bumpp -a"
+  },
+  "packageManager": "pnpm@11.18.0",
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "bumpp": "^12.2.1",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.5.4",
+    "vitest": "^3.0.5"
+  }
+}

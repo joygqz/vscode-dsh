@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Build and package .vsix
+        run: pnpm package
+
+      - name: Create GitHub release (changelogithub)
+        run: npx changelogithub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload .vsix to the release
+        run: gh release upload "${{ github.ref_name }}" *.vsix --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # 可选：同时配置 VSCE_PAT 与 OVSX_PAT 后，自动发布到两个扩展市场。
+      # 发布到市场还需要在 package.json 中填好自己的 publisher 与 repository。
+      - name: Publish to VS Code Marketplace & Open VSX
+        if: ${{ secrets.VSCE_PAT != '' && secrets.OVSX_PAT != '' }}
+        run: npx vsxpub --no-dependencies
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
