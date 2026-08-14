@@ -10,6 +10,11 @@ jobs:
     permissions:
       contents: write
 
+    env:
+      # secrets 上下文不允许出现在 step 级 if 中，因此先在 job 级 env 布尔化。
+      HAS_VSCE_PAT: ${{ secrets.VSCE_PAT != '' }}
+      HAS_OVSX_PAT: ${{ secrets.OVSX_PAT != '' }}
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -48,7 +53,7 @@ jobs:
       # 可选：同时配置 VSCE_PAT 与 OVSX_PAT 后，自动发布到两个扩展市场。
       # 发布到市场还需要在 package.json 中填好自己的 publisher 与 repository。
       - name: Publish to VS Code Marketplace & Open VSX
-        if: ${{ secrets.VSCE_PAT != '' && secrets.OVSX_PAT != '' }}
+        if: env.HAS_VSCE_PAT == 'true' && env.HAS_OVSX_PAT == 'true'
         run: npx vsxpub --no-dependencies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
