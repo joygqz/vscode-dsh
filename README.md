@@ -1,4 +1,4 @@
-# vscode-dsh — DeepSeek Harness VS Code 扩展
+# vscode-dsh — DeepSeek Harness Launcher
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/joygqz.vscode-dsh?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=joygqz.vscode-dsh)
 [![Open VSX](https://img.shields.io/open-vsx/v/joygqz/vscode-dsh?label=Open%20VSX)](https://open-vsx.org/extension/joygqz/vscode-dsh)
@@ -14,7 +14,7 @@
 
 ### 从扩展市场安装（推荐）
 
-- **VS Code Marketplace**：在 VS Code 的扩展视图（`Cmd/Ctrl+Shift+X`）搜索 **DeepSeek Harness** 并安装；
+- **VS Code Marketplace**：在 VS Code 的扩展视图（`Cmd/Ctrl+Shift+X`）搜索 **DeepSeek Harness Launcher** 并安装；
 - **Open VSX**：在 [Open VSX](https://open-vsx.org/extension/joygqz/vscode-dsh) 页面下载，或 `Cmd/Ctrl+Shift+X` → `…` 菜单 → `Install from VSIX...` 安装。
 
 ### 从 GitHub Releases 安装
