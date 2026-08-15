@@ -75,7 +75,7 @@ const DISPOSE_FORCE_WAIT_MS = 900;
 
 export class StartCancelledError extends Error {
   constructor() {
-    super('已取消启动');
+    super('Start cancelled');
     this.name = 'StartCancelledError';
   }
 }
@@ -84,8 +84,8 @@ export class StartCancelledError extends Error {
 export class PortConflictError extends Error {
   constructor(readonly port: number) {
     super(
-      `端口 ${port} 已被占用。建议把 vscode-dsh.port 设为 0，` +
-        '或使用“连接到运行中的服务”显式连接。'
+      `Port ${port} is already in use. Set vscode-dsh.port to 0, ` +
+        'or connect explicitly with "Connect to Running Server".'
     );
     this.name = 'PortConflictError';
   }
@@ -130,9 +130,9 @@ export class DshServerManager {
   }
 
   start(request: LaunchRequest): Promise<StartResult> {
-    if (this.disposed) return Promise.reject(new Error('扩展正在关闭'));
+    if (this.disposed) return Promise.reject(new Error('The extension is shutting down'));
     if (this.snapshot.state === 'error' && this.run) {
-      return Promise.reject(new Error('上一个 DeepSeek Harness 进程仍未确认退出，请先再次执行“停止服务”'));
+      return Promise.reject(new Error('The previous DeepSeek Harness process has not confirmed exit; run "Stop Server" again first'));
     }
     if (this.snapshot.state === 'running' && this.snapshot.url) {
       return Promise.resolve({ kind: 'already-running', url: this.snapshot.url });
@@ -141,7 +141,7 @@ export class DshServerManager {
       if (this.pendingKind === 'start' && this.pendingPromise) {
         return this.pendingPromise as Promise<StartResult>;
       }
-      return Promise.reject(new Error('正在连接其它服务，请先取消当前操作'));
+      return Promise.reject(new Error('Another server connection is in progress; cancel the current operation first'));
     }
     if (this.snapshot.state === 'stopping') {
       const stopped = this.stopPromise ?? Promise.resolve();
@@ -154,11 +154,11 @@ export class DshServerManager {
   }
 
   connect(input: string): Promise<ConnectResult> {
-    if (this.disposed) return Promise.reject(new Error('扩展正在关闭'));
+    if (this.disposed) return Promise.reject(new Error('The extension is shutting down'));
     const url = normalizeLoopbackUrl(input);
-    if (!url) return Promise.reject(new Error('请输入工作区环境的回环地址，例如 http://127.0.0.1:3080'));
+    if (!url) return Promise.reject(new Error('Enter a loopback address in the workspace environment, for example http://127.0.0.1:3080'));
     if (this.snapshot.state === 'error' && this.run) {
-      return Promise.reject(new Error('上一个 DeepSeek Harness 进程仍未确认退出，请先再次执行“停止服务”'));
+      return Promise.reject(new Error('The previous DeepSeek Harness process has not confirmed exit; run "Stop Server" again first'));
     }
     if (this.snapshot.state === 'running' && this.snapshot.url) {
       return Promise.resolve({ kind: 'already-running', url: this.snapshot.url });
@@ -166,11 +166,11 @@ export class DshServerManager {
     if (this.snapshot.state === 'starting') {
       if (this.pendingKind === 'connect' && this.pendingPromise) {
         if (this.pendingTarget !== url) {
-          return Promise.reject(new Error(`正在连接 ${this.pendingTarget ?? '另一个地址'}，请等待或取消后重试`));
+          return Promise.reject(new Error(`Already connecting to ${this.pendingTarget ?? 'another address'}; wait or cancel and try again`));
         }
         return this.pendingPromise as Promise<ConnectResult>;
       }
-      return Promise.reject(new Error('服务正在启动，请先取消当前操作'));
+      return Promise.reject(new Error('The server is starting; cancel the current operation first'));
     }
     if (this.snapshot.state === 'stopping') {
       const stopped = this.stopPromise ?? Promise.resolve();
@@ -187,7 +187,7 @@ export class DshServerManager {
     if (this.snapshot.state === 'starting') {
       const stopped = this.stop();
       stopped.catch((error) => {
-        this.deps.log(`取消操作时清理失败：${normalizeError(error).message}`, 'info');
+        this.deps.log(`Cleanup failed while cancelling the operation: ${normalizeError(error).message}`, 'info');
       });
       return stopped;
     }
@@ -207,7 +207,7 @@ export class DshServerManager {
 
   async restart(request: LaunchRequest): Promise<StartResult> {
     if (this.snapshot.state === 'running' && this.snapshot.ownership === 'external') {
-      throw new Error('外部服务不由本扩展管理，不能重启；请先断开连接');
+      throw new Error('External servers are not managed by this extension and cannot be restarted; disconnect first');
     }
     await this.stop();
     return this.start(request);
@@ -235,7 +235,7 @@ export class DshServerManager {
 
     this.run = undefined;
     run.abort.abort();
-    const error = '与外部 DeepSeek Harness 的连接已断开';
+    const error = 'The connection to the external DeepSeek Harness was lost';
     this.setSnapshot({ state: 'error', error });
     this.deps.log(error, 'info');
     return false;
@@ -315,9 +315,9 @@ export class DshServerManager {
         );
       } catch (error) {
         if (isCancellationError(error)) throw error;
-        throw new Error(`无法登记托管进程：${normalizeError(error).message}`);
+        throw new Error(`Could not register the managed process: ${normalizeError(error).message}`);
       }
-      this.deps.log(`启动: ${formatSpawnSpec(spec)}（工作目录 ${cwd}）`, 'info');
+      this.deps.log(`Starting: ${formatSpawnSpec(spec)} (working directory ${cwd})`, 'info');
 
       const url = await this.waitUntilReady(run, settings.startupTimeout);
       this.assertCurrent(run);
@@ -326,8 +326,8 @@ export class DshServerManager {
       const readyPort = portFromUrl(url);
       if (settings.port > 0 && readyPort !== settings.port) {
         throw new Error(
-          `DSH 报告的就绪端口 ${readyPort ?? '未知'} 与扩展分配的端口 ${settings.port} 不一致；` +
-            '已停止该进程以避免使用错误的 Remote 转发或 Host 信任配置。'
+          `DSH reported ready port ${readyPort ?? 'unknown'} which differs from the port assigned by the extension (${settings.port}); ` +
+            'the process was stopped to avoid using the wrong Remote forwarding or Host trust configuration.'
         );
       }
       try {
@@ -337,13 +337,13 @@ export class DshServerManager {
         );
       } catch (error) {
         if (isCancellationError(error)) throw error;
-        throw new Error(`无法登记托管服务端口：${normalizeError(error).message}`);
+        throw new Error(`Could not register the managed server port: ${normalizeError(error).message}`);
       }
       this.assertCurrent(run);
 
       run.url = url;
       this.setSnapshot({ state: 'running', url, ownership: 'managed', cwd });
-      this.deps.log(`服务已就绪: ${url}`, 'info');
+      this.deps.log(`Server ready: ${url}`, 'info');
       return { kind: 'started', url };
     } catch (error) {
       const normalized = normalizeError(error);
@@ -358,7 +358,7 @@ export class DshServerManager {
             await this.terminateRun(run);
           } catch (terminationError) {
             terminationFailed = true;
-            finalError = new Error(`${normalized.message}；${normalizeError(terminationError).message}`);
+            finalError = new Error(`${normalized.message}; ${normalizeError(terminationError).message}`);
           }
           // stop()/dispose() may have taken ownership while cleanup awaited.
           // Let that operation publish the terminal state.
@@ -381,21 +381,21 @@ export class DshServerManager {
 
   private async doConnect(input: string): Promise<ConnectResult> {
     const url = normalizeLoopbackUrl(input);
-    if (!url) throw new Error('请输入本机地址，例如 http://127.0.0.1:3080');
+    if (!url) throw new Error('Enter a local address, for example http://127.0.0.1:3080');
 
     const run = this.createRun();
     this.run = run;
     this.setSnapshot({ state: 'starting' });
-    this.deps.log(`正在连接外部服务: ${url}`, 'info');
+    this.deps.log(`Connecting to external server: ${url}`, 'info');
 
     try {
       const result = await awaitAbortable(this.probeImpl(url, CONNECT_TIMEOUT_MS, run.abort.signal), run.abort.signal);
       this.assertCurrent(run);
-      if (!result.reachable) throw new Error(`无法连接 ${url}：${result.error ?? '服务没有响应'}`);
-      if (!result.isDsh) throw new Error(`${url} 可以访问，但不是 DeepSeek Harness Web 服务`);
+      if (!result.reachable) throw new Error(`Could not connect to ${url}: ${result.error ?? 'the server did not respond'}`);
+      if (!result.isDsh) throw new Error(`${url} is reachable, but it is not the DeepSeek Harness Web service`);
 
       this.setSnapshot({ state: 'running', url, ownership: 'external' });
-      this.deps.log(`已连接外部 DeepSeek Harness: ${url}`, 'info');
+      this.deps.log(`Connected to external DeepSeek Harness: ${url}`, 'info');
       return { kind: 'connected', url };
     } catch (error) {
       const normalized = normalizeError(error);
@@ -454,18 +454,18 @@ export class DshServerManager {
       run.abort.abort();
       this.run = undefined;
       this.setSnapshot({ state: 'stopped' });
-      this.deps.log('已断开外部服务（没有停止该服务）', 'info');
+      this.deps.log('Disconnected from the external server (it was not stopped)', 'info');
       return;
     }
 
     if (this.snapshot.state === 'running') {
       this.setSnapshot({ state: 'stopping', cwd: run.cwd });
-      this.deps.log('正在停止服务…', 'info');
+      this.deps.log('Stopping server…', 'info');
       await this.terminateRun(run);
       if (this.isCurrent(run)) {
         this.run = undefined;
         this.setSnapshot({ state: 'stopped' });
-        this.deps.log('服务已停止', 'info');
+        this.deps.log('Server stopped', 'info');
       }
       return;
     }
@@ -528,12 +528,12 @@ export class DshServerManager {
       run.exited.resolve({ code, signal });
       if (!this.isCurrent(run)) return;
       if (this.snapshot.state === 'running' && this.snapshot.ownership === 'managed') {
-        const message = `DeepSeek Harness 意外退出（${formatExit(code, signal)}）`;
+        const message = `DeepSeek Harness exited unexpectedly (${formatExit(code, signal)})`;
         this.setSnapshot({ state: 'error', error: message, ownership: 'managed', cwd: run.cwd });
         this.deps.log(message, 'info');
         void this.releaseOwnershipWhenEndpointGone(run, message);
       } else if (this.snapshot.state === 'error' && this.snapshot.ownership === 'managed') {
-        const message = `${this.snapshot.error ?? '服务停止失败'}；进程现已退出，可以重试`;
+        const message = `${this.snapshot.error ?? 'Failed to stop the server'}; the process has exited and can be retried`;
         this.setSnapshot({ state: 'error', error: message, ownership: 'managed', cwd: run.cwd });
         this.deps.log(message, 'info');
         void this.releaseOwnershipWhenEndpointGone(run, message);
@@ -559,8 +559,8 @@ export class DshServerManager {
         () =>
           finish(
             new Error(
-              `等待 DeepSeek Harness 就绪超时（${timeoutSeconds}s）。` +
-                '首次下载可能较慢，可调大 vscode-dsh.startupTimeout；详情见输出面板。'
+              `Timed out waiting for DeepSeek Harness to become ready (${timeoutSeconds}s). ` +
+                'The first download can be slow; increase vscode-dsh.startupTimeout. See the output panel for details.'
             )
           ),
         timeoutSeconds * 1000
@@ -588,21 +588,21 @@ export class DshServerManager {
       this.signalRun(run, false);
       if (!(await waitFor(run.exited.promise, graceMs))) {
         forced = true;
-        this.deps.log('服务未在宽限期内退出，正在强制终止进程树', 'info');
+        this.deps.log('The server did not exit within the grace period; force-terminating the process tree', 'info');
         this.signalRun(run, true);
         if (!(await waitFor(run.exited.promise, forceWaitMs))) {
-          throw new Error('无法确认 DeepSeek Harness 进程树已经退出；已保留进程所有权，可再次执行“停止服务”');
+          throw new Error('Could not confirm the DeepSeek Harness process tree exited; ownership is retained and you can run "Stop Server" again');
         }
       }
     }
 
     if (await this.waitForEndpointRelease(run, forced ? 250 : graceMs)) return;
     if (!forced) {
-      this.deps.log('启动器已退出但监听端口仍在使用，正在强制清理残留进程树', 'info');
+      this.deps.log('The launcher exited but the listening port is still in use; force-cleaning the remaining process tree', 'info');
       this.signalRun(run, true);
       if (await this.waitForEndpointRelease(run, forceWaitMs)) return;
     }
-    throw new Error('DeepSeek Harness 启动器已退出，但监听端口仍未释放；已保留所有权，可再次执行“停止服务”');
+    throw new Error('The DeepSeek Harness launcher exited but the listening port was not released; ownership is retained and you can run "Stop Server" again');
   }
 
   private async waitForEndpointRelease(run: Run, budgetMs: number): Promise<boolean> {
@@ -627,9 +627,9 @@ export class DshServerManager {
       if (!(await this.waitForEndpointRelease(run, 600)) || !this.isCurrent(run)) return;
       if (this.snapshot.state !== 'error' || this.snapshot.ownership !== 'managed') return;
       this.run = undefined;
-      this.setSnapshot({ state: 'error', error: `${message}；可以直接重试` });
+      this.setSnapshot({ state: 'error', error: `${message}; it is safe to retry now` });
     } catch (error) {
-      this.deps.log(`检查残留监听端口失败：${normalizeError(error).message}`, 'info');
+      this.deps.log(`Failed to check the remaining listening port: ${normalizeError(error).message}`, 'info');
     }
   }
 
@@ -656,9 +656,9 @@ export class DshServerManager {
       try {
         const taskkill = win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe');
         const killer = this.spawnImpl(taskkill, args, { shell: false, stdio: 'ignore', windowsHide: true });
-        killer.on('error', (error) => this.deps.log(`taskkill 失败: ${error.message}`, 'info'));
+        killer.on('error', (error) => this.deps.log(`taskkill failed: ${error.message}`, 'info'));
       } catch (error) {
-        this.deps.log(`taskkill 失败: ${normalizeError(error).message}`, 'info');
+        this.deps.log(`taskkill failed: ${normalizeError(error).message}`, 'info');
       }
       return;
     }
@@ -679,16 +679,16 @@ export class DshServerManager {
       return new PortConflictError(run.expectedPort);
     }
     return new Error(
-      `服务进程在就绪前退出（${formatExit(info.code, info.signal)}）。` +
-        '请打开“输出 → DeepSeek Harness Launcher”查看完整日志。'
+      `The server process exited before it became ready (${formatExit(info.code, info.signal)}). ` +
+        'Open "Output → DeepSeek Harness Launcher" for the full log.'
     );
   }
 
   private spawnError(command: string, error: unknown): Error {
     const message = normalizeError(error).message;
     return new Error(
-      `无法启动 ${command}：${message}。` +
-        '请确认已安装受支持的 Node.js，且 node / npx 可从 PATH 访问。'
+      `Could not start ${command}: ${message}. ` +
+        'Make sure a supported Node.js is installed and node / npx are reachable through PATH.'
     );
   }
 

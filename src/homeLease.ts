@@ -56,7 +56,7 @@ export class HomeLeaseOwnershipError extends Error {
   readonly code = 'DSH_HOME_OWNERSHIP_LOST';
 
   constructor() {
-    super('DeepSeek Harness 数据目录的租约已不属于当前窗口；为避免影响其他窗口，未修改或删除锁。');
+    super('The DeepSeek Harness data directory lease no longer belongs to this window; the lock was left untouched to avoid affecting other windows.');
     this.name = 'HomeLeaseOwnershipError';
   }
 }
@@ -111,7 +111,7 @@ export class HomeLease {
   update(patch: HomeLeaseUpdate): Promise<HomeLeaseMetadata> {
     return this.enqueue(async () => {
       if (this.released) throw new HomeLeaseOwnershipError();
-      validateOptionalPid(patch.childPid, '子进程 PID');
+      validateOptionalPid(patch.childPid, 'child process PID');
       validateOptionalPort(patch.port);
 
       const snapshot = await readOwnedSnapshot(this.lockDirectory, this.token);
@@ -171,12 +171,12 @@ export async function acquireHomeLease(
   options: HomeLeaseAcquireOptions = {}
 ): Promise<HomeLease> {
   if (!dshHome || !isAbsolute(dshHome)) {
-    throw new Error('DeepSeek Harness 数据目录必须是绝对路径。');
+    throw new Error('The DeepSeek Harness data directory must be an absolute path.');
   }
 
   const homeDirectory = resolve(dshHome);
   const extensionHostPid = options.extensionHostPid ?? process.pid;
-  validatePid(extensionHostPid, '扩展宿主 PID');
+  validatePid(extensionHostPid, 'extension host PID');
   const normalized: RequiredAcquireOptions = {
     extensionHostPid,
     isProcessAlive: options.isProcessAlive ?? defaultIsProcessAlive,
@@ -186,12 +186,12 @@ export async function acquireHomeLease(
     staleConfirmationMs: nonNegativeInteger(
       options.staleConfirmationMs,
       DEFAULT_STALE_CONFIRMATION_MS,
-      '陈旧锁确认时间'
+      'stale lock confirmation time'
     ),
     initializationGraceMs: nonNegativeInteger(
       options.initializationGraceMs,
       DEFAULT_INITIALIZATION_GRACE_MS,
-      '锁初始化保护时间'
+      'lock initialization grace time'
     ),
     now: options.now ?? (() => new Date()),
   };
@@ -241,7 +241,7 @@ export async function acquireHomeLease(
   }
 
   throw new HomeLeaseConflictError(
-    'DeepSeek Harness 数据目录的锁正在被其他窗口更新。请稍后重试；若问题持续，请先停止其他窗口中的服务。'
+    'The DeepSeek Harness data directory lock is being updated by another window. Try again later; if the problem persists, stop the server in the other window first.'
   );
 }
 
@@ -290,7 +290,7 @@ async function assertSnapshotIsStale(
     const age = Math.max(0, options.now().getTime() - snapshot.modifiedAtMs);
     if (age < options.initializationGraceMs) {
       throw new HomeLeaseConflictError(
-        'DeepSeek Harness 数据目录的锁正在初始化。请稍后重试；若问题持续，请关闭占用该工作区的其他 VS Code 窗口。'
+        'The DeepSeek Harness data directory lock is being initialized. Try again later; if the problem persists, close other VS Code windows using this workspace.'
       );
     }
     return;
@@ -298,22 +298,22 @@ async function assertSnapshotIsStale(
 
   const active: string[] = [];
   if (await processIsAlive(options.isProcessAlive, metadata.extensionHostPid)) {
-    active.push(`扩展宿主 PID ${metadata.extensionHostPid}`);
+    active.push(`extension host PID ${metadata.extensionHostPid}`);
   }
   if (
     metadata.childPid !== undefined &&
     metadata.childPid !== metadata.extensionHostPid &&
     (await processIsAlive(options.isProcessAlive, metadata.childPid))
   ) {
-    active.push(`DSH 子进程 PID ${metadata.childPid}`);
+    active.push(`DSH child process PID ${metadata.childPid}`);
   }
   if (metadata.port !== undefined && (await endpointIsInUse(options.isEndpointInUse, metadata.port))) {
-    active.push(`本机端口 ${metadata.port}`);
+    active.push(`local port ${metadata.port}`);
   }
 
   if (active.length > 0) {
     throw new HomeLeaseConflictError(
-      `此工作区的 DeepSeek Harness 数据目录仍在使用中（${active.join('、')}）。请先在原 VS Code 窗口停止服务，再重试。`,
+      `The DeepSeek Harness data directory for this workspace is still in use (${active.join(', ')}). Stop the server in the original VS Code window and try again.`,
       metadata
     );
   }
@@ -328,8 +328,8 @@ async function inspectLock(lockDirectory: string): Promise<LockSnapshot> {
   } catch (error) {
     if (errorCode(error) !== 'ENOENT') {
       throw new HomeLeaseConflictError(
-        `无法读取 DeepSeek Harness 数据目录租约：${error instanceof Error ? error.message : String(error)}。` +
-          '为避免破坏其他窗口的数据，扩展不会自动接管。'
+        `Could not read the DeepSeek Harness data directory lease: ${error instanceof Error ? error.message : String(error)}. ` +
+          'To avoid damaging another window\'s data, the extension will not take over automatically.'
       );
     }
   }
@@ -414,7 +414,7 @@ async function restoreMovedLock(from: string, to: string): Promise<void> {
     await rename(from, to);
   } catch (error) {
     throw new HomeLeaseConflictError(
-      `DeepSeek Harness 数据目录的锁发生并发变化，已保留隔离目录 ${from}。请关闭其他窗口并检查该目录后重试。`
+      `The DeepSeek Harness data directory lock changed concurrently; the isolated directory ${from} was preserved. Close other windows, inspect that directory, and try again.`
     );
   }
 }
@@ -466,12 +466,12 @@ function validateOptionalPid(value: number | null | undefined, label: string): v
 }
 
 function validatePid(value: number, label: string): void {
-  if (!isPid(value)) throw new Error(`${label} 必须是正整数。`);
+  if (!isPid(value)) throw new Error(`${label} must be a positive integer.`);
 }
 
 function validateOptionalPort(value: number | null | undefined): void {
   if (value !== undefined && value !== null && !isPort(value)) {
-    throw new Error('DeepSeek Harness 端口必须是 1 到 65535 之间的整数。');
+    throw new Error('The DeepSeek Harness port must be an integer between 1 and 65535.');
   }
 }
 
@@ -489,7 +489,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function nonNegativeInteger(value: number | undefined, fallback: number, label: string): number {
   const result = value ?? fallback;
-  if (!Number.isInteger(result) || result < 0) throw new Error(`${label}必须是非负整数毫秒数。`);
+  if (!Number.isInteger(result) || result < 0) throw new Error(`${label} must be a non-negative integer number of milliseconds.`);
   return result;
 }
 

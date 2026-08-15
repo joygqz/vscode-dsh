@@ -109,7 +109,7 @@ class ExtensionApp {
   }
 
   async initialize(): Promise<void> {
-    this.logger.log('DeepSeek Harness Launcher 扩展已激活', 'info');
+    this.logger.log('DeepSeek Harness Launcher extension activated', 'info');
     await vscode.workspace.fs.createDirectory(vscode.Uri.file(this.dshHome));
     await this.publish(this.lastSnapshot);
     const behavior = readSettings().startupBehavior;
@@ -151,8 +151,8 @@ class ExtensionApp {
     }
     if (!result) return;
 
-    const choice = await vscode.window.showInformationMessage('DeepSeek Harness 已就绪。', '打开');
-    if (choice !== '打开') return;
+    const choice = await vscode.window.showInformationMessage('DeepSeek Harness is ready.', 'Open');
+    if (choice !== 'Open') return;
     const location = readSettings().openLocation;
     try {
       await this.present(result.url, location);
@@ -181,7 +181,7 @@ class ExtensionApp {
       ? vscode.window.withProgress(
           {
             location: vscode.ProgressLocation.Notification,
-            title: '正在准备并启动 DeepSeek Harness…',
+            title: 'Preparing and starting DeepSeek Harness…',
             cancellable: true,
           },
           async (_progress, token) => {
@@ -221,7 +221,7 @@ class ExtensionApp {
     const cwd = await awaitAbortable(resolveWorkingDirectory(settings.workingDirectory, interactive), signal);
     if (!cwd) {
       this.setOperation(undefined);
-      if (!interactive) this.logger.log('没有可用的工作区文件夹，已跳过自动启动', 'info');
+      if (!interactive) this.logger.log('No workspace folder available; skipped automatic startup', 'info');
       return undefined;
     }
 
@@ -283,27 +283,27 @@ class ExtensionApp {
     }
     // openExternal resolves localhost through the active Remote tunnel itself.
     const opened = await vscode.env.openExternal(vscode.Uri.parse(internalUrl));
-    if (!opened) throw new Error('系统未能打开浏览器，请改用“在 VS Code 中打开”');
+    if (!opened) throw new Error('The system could not open the browser; use "Open in VS Code" instead');
   }
 
   private async connectExternal(): Promise<void> {
     if (!(await this.ensureTrusted(true, () => this.connectExternal()))) return;
     if (this.launchPromise || !['stopped', 'error'].includes(this.manager.getSnapshot().state)) {
-      void vscode.window.showWarningMessage('另一个启动或重启操作正在进行，请先取消或等待完成。');
+      void vscode.window.showWarningMessage('Another start or restart operation is in progress; cancel it or wait for it to finish.');
       return;
     }
     const input = await vscode.window.showInputBox({
-      title: '连接到运行中的 DeepSeek Harness',
-      prompt: '只允许工作区所在环境的回环地址；扩展不会停止或重启外部服务',
+      title: 'Connect to Running DeepSeek Harness',
+      prompt: 'Only loopback addresses in the workspace environment are allowed; the extension will not stop or restart external servers',
       value: this.lastExternalUrl ?? 'http://127.0.0.1:3080',
       ignoreFocusOut: true,
-      validateInput: (value) => (normalizeLoopbackUrl(value) ? undefined : '请输入工作区环境的 HTTP 回环地址'),
+      validateInput: (value) => (normalizeLoopbackUrl(value) ? undefined : 'Enter an HTTP loopback address in the workspace environment'),
     });
     if (!input) return;
     const url = normalizeLoopbackUrl(input);
     if (!url) return;
     if (this.launchPromise || !['stopped', 'error'].includes(this.manager.getSnapshot().state)) {
-      void vscode.window.showWarningMessage('服务状态已在输入期间改变，请确认后重试连接。');
+      void vscode.window.showWarningMessage('The server state changed while you were typing; verify it and try connecting again.');
       return;
     }
     this.lastExternalUrl = url;
@@ -317,7 +317,7 @@ class ExtensionApp {
       result = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: '正在连接 DeepSeek Harness…',
+          title: 'Connecting to DeepSeek Harness…',
           cancellable: true,
         },
         async (_progress, token) => {
@@ -335,7 +335,7 @@ class ExtensionApp {
     }
 
     if (this.manager.getSnapshot().ownership !== 'external') {
-      void vscode.window.showWarningMessage('当前运行的是扩展托管服务，未切换为外部连接。');
+      void vscode.window.showWarningMessage('The extension-managed server is currently running, so no switch to an external connection was made.');
       return;
     }
     this.launchFingerprint = undefined;
@@ -355,18 +355,18 @@ class ExtensionApp {
     if (this.launchPromise) await this.launchPromise.catch(() => undefined);
     try {
       await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: '正在停止 DeepSeek Harness…' },
+        { location: vscode.ProgressLocation.Notification, title: 'Stopping DeepSeek Harness…' },
         () => this.manager.stop()
       );
     } catch (error) {
-      const choice = await vscode.window.showErrorMessage(`停止失败：${messageOf(error)}`, '查看输出');
-      if (choice === '查看输出') this.logger.show();
+      const choice = await vscode.window.showErrorMessage(`Failed to stop: ${messageOf(error)}`, 'Show Output');
+      if (choice === 'Show Output') this.logger.show();
     }
   }
 
   private async disconnectExternal(): Promise<void> {
     await this.manager.stop();
-    void vscode.window.showInformationMessage('已断开外部 DeepSeek Harness；外部服务仍在运行。');
+    void vscode.window.showInformationMessage('Disconnected from the external DeepSeek Harness; the external server is still running.');
   }
 
   private async restartManaged(): Promise<void> {
@@ -377,7 +377,7 @@ class ExtensionApp {
     const promise: Promise<StartResult | undefined> = Promise.resolve(vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: '正在准备并重启 DeepSeek Harness…',
+        title: 'Preparing and restarting DeepSeek Harness…',
         cancellable: true,
       },
       async (_progress, token) => {
@@ -404,8 +404,8 @@ class ExtensionApp {
       return;
     }
     if (!result || this.panel.isOpen()) return;
-    const choice = await vscode.window.showInformationMessage('DeepSeek Harness 已重新启动。', '打开');
-    if (choice !== '打开') return;
+    const choice = await vscode.window.showInformationMessage('DeepSeek Harness restarted.', 'Open');
+    if (choice !== 'Open') return;
     const location = readSettings().openLocation;
     try {
       await this.present(result.url, location);
@@ -450,7 +450,7 @@ class ExtensionApp {
       this.restartInProgress = false;
       if (this.manager.getSnapshot().state === 'stopped') {
         this.panel.showOffline(
-          signal.aborted ? 'DeepSeek Harness 重启已取消，服务已停止。' : undefined
+          signal.aborted ? 'The DeepSeek Harness restart was cancelled and the server was stopped.' : undefined
         );
       }
     }
@@ -458,15 +458,15 @@ class ExtensionApp {
 
   private async copyUrl(url = this.manager.getUrl()): Promise<void> {
     if (!url) {
-      void vscode.window.showWarningMessage('DeepSeek Harness 尚未运行。');
+      void vscode.window.showWarningMessage('DeepSeek Harness is not running.');
       return;
     }
     try {
       const externalUrl = await this.resolveExternalUrl(url);
       await vscode.env.clipboard.writeText(externalUrl);
-      void vscode.window.showInformationMessage('已复制 DeepSeek Harness 访问地址。');
+      void vscode.window.showInformationMessage('Copied the DeepSeek Harness access URL.');
     } catch (error) {
-      void vscode.window.showErrorMessage(`复制地址失败：${messageOf(error)}`);
+      void vscode.window.showErrorMessage(`Failed to copy the URL: ${messageOf(error)}`);
     }
   }
 
@@ -499,11 +499,11 @@ class ExtensionApp {
       return;
     }
     if (snapshot.state === 'starting') {
-      const action = await vscode.window.showQuickPick(['取消当前操作', '显示输出'], {
-        title: 'DeepSeek Harness 正在准备、启动或连接',
+      const action = await vscode.window.showQuickPick(['Cancel Current Operation', 'Show Output'], {
+        title: 'DeepSeek Harness is preparing, starting, or connecting',
       });
-      if (action === '取消当前操作') this.cancelLaunch();
-      if (action === '显示输出') this.logger.show();
+      if (action === 'Cancel Current Operation') this.cancelLaunch();
+      if (action === 'Show Output') this.logger.show();
       return;
     }
     if (snapshot.state === 'stopping') {
@@ -511,32 +511,32 @@ class ExtensionApp {
       return;
     }
     if (snapshot.state === 'error' && snapshot.ownership === 'managed') {
-      const action = await vscode.window.showQuickPick(['再次停止服务', '显示输出'], {
-        title: '上一个服务进程尚未确认退出',
+      const action = await vscode.window.showQuickPick(['Stop Server Again', 'Show Output'], {
+        title: 'The previous server process has not confirmed exit',
       });
-      if (action === '再次停止服务') await this.stopManaged();
-      if (action === '显示输出') this.logger.show();
+      if (action === 'Stop Server Again') await this.stopManaged();
+      if (action === 'Show Output') this.logger.show();
       return;
     }
     if (snapshot.state === 'error' && this.errorSource === 'external' && this.lastExternalUrl) {
-      const action = await vscode.window.showQuickPick(['重新连接', '启动新服务', '显示扩展输出'], {
-        title: snapshot.error ?? '外部 DeepSeek Harness 连接失败',
+      const action = await vscode.window.showQuickPick(['Reconnect', 'Start New Server', 'Show Extension Output'], {
+        title: snapshot.error ?? 'External DeepSeek Harness connection failed',
       });
-      if (action === '重新连接') await this.connectTo(this.lastExternalUrl, true);
-      if (action === '启动新服务') {
+      if (action === 'Reconnect') await this.connectTo(this.lastExternalUrl, true);
+      if (action === 'Start New Server') {
         this.lastExternalUrl = undefined;
         await this.openAt(readSettings().openLocation, true);
       }
-      if (action === '显示扩展输出') this.logger.show();
+      if (action === 'Show Extension Output') this.logger.show();
       return;
     }
     if (snapshot.state === 'running' && this.restartRequired && snapshot.ownership === 'managed') {
-      const action = await vscode.window.showQuickPick(['重启并应用设置', '打开', '显示输出'], {
-        title: 'DeepSeek Harness Launcher 设置已更改',
+      const action = await vscode.window.showQuickPick(['Restart and Apply Settings', 'Open', 'Show Output'], {
+        title: 'DeepSeek Harness Launcher settings changed',
       });
-      if (action === '重启并应用设置') await this.restartManaged();
-      if (action === '打开') await this.openAt(readSettings().openLocation, true);
-      if (action === '显示输出') this.logger.show();
+      if (action === 'Restart and Apply Settings') await this.restartManaged();
+      if (action === 'Open') await this.openAt(readSettings().openLocation, true);
+      if (action === 'Show Output') this.logger.show();
       return;
     }
     await this.openAt(readSettings().openLocation, true);
@@ -557,16 +557,16 @@ class ExtensionApp {
 
     if (this.restartInProgress && ['stopping', 'stopped', 'starting'].includes(snapshot.state)) {
       this.panel.showOffline(
-        'DeepSeek Harness 正在重启；服务就绪后此页面会自动恢复。',
-        '正在重启'
+        'DeepSeek Harness is restarting; this page will recover automatically when the server is ready.',
+        'Restarting'
       );
     } else if (snapshot.state === 'stopping') {
       this.panel.showOffline(
-        'DeepSeek Harness 正在安全停止…',
-        '正在停止'
+        'DeepSeek Harness is stopping safely…',
+        'Stopping'
       );
     } else if (snapshot.state === 'error') {
-      this.panel.showOffline(snapshot.error ?? 'DeepSeek Harness 操作失败。', '错误');
+      this.panel.showOffline(snapshot.error ?? 'DeepSeek Harness operation failed.', 'Error');
     } else if (snapshot.state === 'stopped' && previous.state !== 'stopped') {
       this.panel.showOffline();
     }
@@ -574,7 +574,7 @@ class ExtensionApp {
       if (snapshot.ownership === 'external') this.lastExternalUrl = snapshot.url;
       if (this.panel.isOpen()) {
         void this.panel.updateUrl(snapshot.url).catch((error) => {
-          this.logger.log(`无法更新 VS Code 内置界面：${messageOf(error)}`, 'info');
+          this.logger.log(`Failed to update the built-in VS Code view: ${messageOf(error)}`, 'info');
         });
       }
       this.recalculateRestartRequired();
@@ -591,10 +591,10 @@ class ExtensionApp {
 
     if (!this.disposed && previous.state === 'running' && snapshot.state === 'error') {
       const external = previous.ownership === 'external';
-      const actions = external ? ['重新连接'] : ['查看输出'];
-      void vscode.window.showErrorMessage(snapshot.error ?? 'DeepSeek Harness 已停止', ...actions).then((choice) => {
-        if (choice === '查看输出') this.logger.show();
-        if (choice === '重新连接' && this.lastExternalUrl) void this.connectTo(this.lastExternalUrl, true);
+      const actions = external ? ['Reconnect'] : ['Show Output'];
+      void vscode.window.showErrorMessage(snapshot.error ?? 'DeepSeek Harness stopped', ...actions).then((choice) => {
+        if (choice === 'Show Output') this.logger.show();
+        if (choice === 'Reconnect' && this.lastExternalUrl) void this.connectTo(this.lastExternalUrl, true);
       });
     }
   }
@@ -631,8 +631,8 @@ class ExtensionApp {
     } catch (error) {
       if (isCancellationError(error)) throw error;
       throw new Error(
-        `无法准备 VS Code Remote 转发地址：${messageOf(error)}。` +
-          '请检查端口转发权限后重试；扩展不会在 Host 信任名单未知时启动服务。'
+        `Could not prepare the VS Code Remote forwarding address: ${messageOf(error)}. ` +
+          'Check port forwarding permissions and try again; the extension will not start the server when the Host allow-list is unknown.'
       );
     }
 
@@ -642,7 +642,7 @@ class ExtensionApp {
       return { ...settings, port };
     }
 
-    this.logger.log(`已将 VS Code Remote 转发 authority 加入 DSH Host 信任名单：${authority}`, 'info');
+    this.logger.log(`Added the VS Code Remote forwarding authority to the DSH Host allow-list: ${authority}`, 'info');
     return {
       ...settings,
       port,
@@ -665,7 +665,7 @@ class ExtensionApp {
       if (
         eligible &&
         !retryable &&
-        /就绪前退出/.test(messageOf(error)) &&
+        /exited before it became ready/.test(messageOf(error)) &&
         request.settings.port > 0
       ) {
         retryable = await awaitAbortable(isPortInUse(request.settings.port, 600, signal), signal);
@@ -673,7 +673,7 @@ class ExtensionApp {
       if (!retryable) throw error;
 
       this.throwIfCancelled(signal);
-      this.logger.log('Remote 自动端口在启动前被占用，正在重新分配并重试一次', 'info');
+      this.logger.log('The Remote automatic port was taken before startup; reallocating and retrying once', 'info');
       const remoteSettings = await this.prepareRemoteSettings(configuredSettings, signal);
       const launchSettings = withVerifiedRuntime(remoteSettings, runtime, environment, this.dshHome);
       return this.manager.start({ ...request, settings: launchSettings });
@@ -696,7 +696,7 @@ class ExtensionApp {
       });
     }
     return pending.then((runtime) => {
-      this.logger.log(`使用 ${runtime.version}（npx: ${runtime.npxPath}）`, 'info');
+      this.logger.log(`Using ${runtime.version} (npx: ${runtime.npxPath})`, 'info');
       return runtime;
     });
   }
@@ -706,13 +706,13 @@ class ExtensionApp {
     resumeAfterTrust?: () => Promise<void>
   ): Promise<boolean> {
     if (vscode.workspace.isTrusted) return true;
-    this.logger.log('工作区未受信任，拒绝启动或连接 DeepSeek Harness', 'info');
+    this.logger.log('Workspace is not trusted; refusing to start or connect DeepSeek Harness', 'info');
     if (!interactive) return false;
     const choice = await vscode.window.showWarningMessage(
-      'DeepSeek Harness 能读写文件并执行命令。请仅在你信任的工作区中使用。',
-      '管理工作区信任'
+      'DeepSeek Harness can read and write files and run commands. Only use it in workspaces you trust.',
+      'Manage Workspace Trust'
     );
-    if (choice === '管理工作区信任') {
+    if (choice === 'Manage Workspace Trust') {
       const pending = resumeAfterTrust;
       this.pendingTrustAction = pending;
       try {
@@ -750,23 +750,23 @@ class ExtensionApp {
 
   private async showStartError(error: unknown): Promise<void> {
     if (isCancellationError(error)) {
-      this.logger.log('操作已取消', 'info');
+      this.logger.log('Operation cancelled', 'info');
       return;
     }
-    const choice = await vscode.window.showErrorMessage(messageOf(error), '查看输出', '打开设置');
-    if (choice === '查看输出') this.logger.show();
-    if (choice === '打开设置') {
+    const choice = await vscode.window.showErrorMessage(messageOf(error), 'Show Output', 'Open Settings');
+    if (choice === 'Show Output') this.logger.show();
+    if (choice === 'Open Settings') {
       await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:joygqz.vscode-dsh');
     }
   }
 
   private async showOpenError(error: unknown, failedLocation: OpenLocation): Promise<void> {
-    const fallbackLabel = failedLocation === 'browser' ? '在 VS Code 中打开' : '在浏览器中打开';
+    const fallbackLabel = failedLocation === 'browser' ? 'Open in VS Code' : 'Open in Browser';
     const fallbackLocation: OpenLocation = failedLocation === 'browser' ? 'editor' : 'browser';
     const choice = await vscode.window.showErrorMessage(
-      `服务正在运行，但打开界面失败：${messageOf(error)}`,
+      `The server is running, but opening the UI failed: ${messageOf(error)}`,
       fallbackLabel,
-      '查看输出'
+      'Show Output'
     );
     if (choice === fallbackLabel) {
       const url = this.manager.getUrl();
@@ -774,11 +774,11 @@ class ExtensionApp {
         try {
           await this.present(url, fallbackLocation);
         } catch (retryError) {
-          void vscode.window.showErrorMessage(`仍无法打开：${messageOf(retryError)}`);
+          void vscode.window.showErrorMessage(`Still could not open: ${messageOf(retryError)}`);
         }
       }
     }
-    if (choice === '查看输出') this.logger.show();
+    if (choice === 'Show Output') this.logger.show();
   }
 
   private effectiveSnapshot(): ServerSnapshot {
@@ -815,8 +815,8 @@ class ExtensionApp {
   private renderStatus(snapshot: ServerSnapshot): void {
     if (!vscode.workspace.isTrusted) {
       this.statusItem.text = '$(shield) DSH';
-      this.statusItem.tooltip = '工作区未受信任\n点击了解并管理工作区信任';
-      this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness，需要信任工作区' };
+      this.statusItem.tooltip = 'Workspace is not trusted\nClick to learn about and manage Workspace Trust';
+      this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness, workspace trust required' };
       return;
     }
 
@@ -824,42 +824,44 @@ class ExtensionApp {
       case 'running': {
         const port = snapshot.url ? portFromUrl(snapshot.url) : undefined;
         const external = snapshot.ownership === 'external';
-        this.statusItem.text = `${external ? '$(link)' : '$(server)'} DSH${port ? `:${port}` : ''}${
+        this.statusItem.text = `${external ? '$(link)' : '$(server)'} DSH${port ? `: ${port}` : ''}${
           this.restartRequired ? '*' : ''
         }`;
         const lines = [
-          external ? '已连接外部 DeepSeek Harness' : 'DeepSeek Harness 运行中',
+          external ? 'Connected to external DeepSeek Harness' : 'DeepSeek Harness running',
           snapshot.url ?? '',
         ];
-        if (snapshot.cwd) lines.push(`工作目录：${snapshot.cwd}`);
-        if (external) lines.push('该服务不由本扩展停止或重启');
-        if (this.restartRequired) lines.push('设置已更改；点击可重启并应用');
-        else lines.push('点击打开');
+        if (snapshot.cwd) lines.push(`Working directory: ${snapshot.cwd}`);
+        if (external) lines.push('This server is not stopped or restarted by this extension');
+        if (this.restartRequired) lines.push('Settings changed; click to restart and apply');
+        else lines.push('Click to open');
         this.statusItem.tooltip = lines.join('\n');
         this.statusItem.accessibilityInformation = {
-          label: external ? 'DeepSeek Harness，已连接外部服务' : 'DeepSeek Harness，运行中',
+          label: `${external ? 'DeepSeek Harness, connected to an external server' : 'DeepSeek Harness, running'}${
+            port ? `, port ${port}` : ''
+          }`,
         };
         break;
       }
       case 'starting':
-        this.statusItem.text = '$(sync~spin) DSH 处理中…';
-        this.statusItem.tooltip = '正在检查环境、启动或连接 DeepSeek Harness\n点击可取消当前操作或查看输出';
-        this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness，操作进行中' };
+        this.statusItem.text = '$(sync~spin) DSH Working…';
+        this.statusItem.tooltip = 'Checking the environment, starting, or connecting DeepSeek Harness\nClick to cancel the current operation or view output';
+        this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness, operation in progress' };
         break;
       case 'stopping':
-        this.statusItem.text = '$(sync~spin) DSH 停止中…';
-        this.statusItem.tooltip = '正在安全停止 DeepSeek Harness\n点击查看输出';
-        this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness，停止中' };
+        this.statusItem.text = '$(sync~spin) DSH Stopping…';
+        this.statusItem.tooltip = 'Stopping DeepSeek Harness safely\nClick to view output';
+        this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness, stopping' };
         break;
       case 'error':
         this.statusItem.text = '$(error) DSH';
-        this.statusItem.tooltip = `${snapshot.error ?? '操作失败'}\n点击查看恢复选项`;
-        this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness，发生错误' };
+        this.statusItem.tooltip = `${snapshot.error ?? 'Operation failed'}\nClick to view recovery options`;
+        this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness, an error occurred' };
         break;
       default:
         this.statusItem.text = '$(server) DSH';
-        this.statusItem.tooltip = 'DeepSeek Harness 未运行\n点击启动并打开';
-        this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness，未运行' };
+        this.statusItem.tooltip = 'DeepSeek Harness is not running\nClick to start and open';
+        this.statusItem.accessibilityInformation = { label: 'DeepSeek Harness, not running' };
     }
   }
 
@@ -882,7 +884,7 @@ class ExtensionApp {
           vscode.commands.executeCommand('setContext', 'vscode-dsh.restartRequired', values.restartRequired),
         ]);
       })
-      .catch((error) => this.logger.log(`无法更新命令状态：${messageOf(error)}`, 'info'));
+      .catch((error) => this.logger.log(`Failed to update command state: ${messageOf(error)}`, 'info'));
     return this.contextQueue;
   }
 }

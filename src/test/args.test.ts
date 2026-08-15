@@ -94,8 +94,8 @@ describe('buildSpawnSpec', () => {
 
 describe('validateLaunchSettings', () => {
   it.each([
-    [{ packageSpec: '' }, /包标识/],
-    [{ packageSpec: '--bad' }, /包标识/],
+    [{ packageSpec: '' }, /package spec/],
+    [{ packageSpec: '--bad' }, /package spec/],
     [{ port: -1 }, /port/],
     [{ port: 65536 }, /port/],
     [{ port: 1.5 }, /port/],
@@ -107,7 +107,7 @@ describe('validateLaunchSettings', () => {
   it.each(['--host', '--host=localhost', '--port', '--port=1234', '--patch']) (
     'rejects extension-owned Web argument %s',
     (arg) => {
-      expect(() => validateLaunchSettings(settings({ webArgs: [arg] }))).toThrow(/由扩展管理/);
+      expect(() => validateLaunchSettings(settings({ webArgs: [arg] }))).toThrow(/is managed by the extension/);
     }
   );
 });

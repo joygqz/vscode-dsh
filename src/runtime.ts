@@ -3,7 +3,7 @@ import { constants } from 'node:fs';
 import { access, stat } from 'node:fs/promises';
 import { delimiter, dirname, extname, isAbsolute, join } from 'node:path';
 
-const SUPPORTED_NODE_DESCRIPTION = 'Node.js 22.19+（22.x）或 24+';
+const SUPPORTED_NODE_DESCRIPTION = 'Node.js 22.19+ (22.x) or 24+';
 
 export interface NodeRuntime {
   version: string;
@@ -28,17 +28,17 @@ export function isSupportedNodeVersion(output: string): boolean {
 export async function checkNodeRuntime(environment: NodeJS.ProcessEnv = process.env): Promise<NodeRuntime> {
   const nodePath = await findExecutableOnPath('node', environment);
   if (!nodePath) {
-    throw new Error(`未找到可用的 Node.js。请先安装 ${SUPPORTED_NODE_DESCRIPTION}，然后重试。`);
+    throw new Error(`No usable Node.js was found. Install ${SUPPORTED_NODE_DESCRIPTION} and try again.`);
   }
 
   let output: string;
   try {
     output = (await execFileText(nodePath, ['--version'], environment)).trim();
   } catch {
-    throw new Error(`无法运行 ${nodePath}。请确认 Node.js 安装完整且 VS Code 扩展环境有执行权限。`);
+    throw new Error(`Could not run ${nodePath}. Make sure Node.js is fully installed and executable in the VS Code extension environment.`);
   }
   if (!isSupportedNodeVersion(output)) {
-    throw new Error(`当前 PATH 中的 Node.js 为 ${output || '未知版本'}；DeepSeek Harness 需要 ${SUPPORTED_NODE_DESCRIPTION}。`);
+    throw new Error(`The Node.js on PATH is ${output || 'an unknown version'}; DeepSeek Harness requires ${SUPPORTED_NODE_DESCRIPTION}.`);
   }
 
   const npxPath = join(dirname(nodePath), process.platform === 'win32' ? 'npx.cmd' : 'npx');
@@ -46,7 +46,7 @@ export async function checkNodeRuntime(environment: NodeJS.ProcessEnv = process.
     await access(npxPath, process.platform === 'win32' ? constants.F_OK : constants.X_OK);
     if (!(await stat(npxPath)).isFile()) throw new Error('not a file');
   } catch {
-    throw new Error('未找到 npx。请安装包含 npm/npx 的 Node.js，并确保它可从 VS Code 扩展环境的 PATH 访问。');
+    throw new Error('npx was not found. Install Node.js with npm/npx and make sure it is reachable through the PATH of the VS Code extension environment.');
   }
   return { version: output, nodePath, npxPath };
 }

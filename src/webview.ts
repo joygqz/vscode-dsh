@@ -18,11 +18,11 @@ export class GuiPanel implements vscode.Disposable {
     this.updateTitle(internalUrl);
     this.panel.reveal(vscode.ViewColumn.Beside, false);
     if (sameUrl) return;
-    this.showMessage('正在建立安全访问通道…');
+    this.showMessage('Establishing a secure access channel…');
     try {
       await this.renderUrl(internalUrl);
     } catch (error) {
-      this.showMessage(`无法打开 DeepSeek Harness：${messageOf(error)}`);
+      this.showMessage(`Could not open DeepSeek Harness: ${messageOf(error)}`);
       throw error;
     }
   }
@@ -39,14 +39,14 @@ export class GuiPanel implements vscode.Disposable {
     try {
       await this.renderUrl(internalUrl);
     } catch (error) {
-      this.showMessage(`无法更新 DeepSeek Harness：${messageOf(error)}`);
+      this.showMessage(`Could not update DeepSeek Harness: ${messageOf(error)}`);
       throw error;
     }
   }
 
   showOffline(
-    message = 'DeepSeek Harness 服务已停止。请运行“DeepSeek Harness Launcher: 打开”重新启动。',
-    titleSuffix = '已停止'
+    message = 'The DeepSeek Harness server has stopped. Run "DeepSeek Harness Launcher: Open" to start it again.',
+    titleSuffix = 'Stopped'
   ): void {
     if (!this.panel) return;
     this.internalUrl = undefined;
@@ -59,7 +59,7 @@ export class GuiPanel implements vscode.Disposable {
     this.renderedUrl = undefined;
     const nonce = randomBytes(16).toString('base64');
     this.panel.webview.html = `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -128,7 +128,7 @@ export class GuiPanel implements vscode.Disposable {
     const source = externalUri.toString();
     const origin = `${externalUri.scheme}://${externalUri.authority}`;
     this.panel.webview.html = `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -147,11 +147,11 @@ export class GuiPanel implements vscode.Disposable {
   private updateTitle(internalUrl?: string, suffix?: string): void {
     if (!this.panel) return;
     if (suffix) {
-      this.panel.title = `DeepSeek Harness（${suffix}）`;
+      this.panel.title = `DeepSeek Harness (${suffix})`;
       return;
     }
     const port = internalUrl ? portFromUrl(internalUrl) : undefined;
-    this.panel.title = port ? `DeepSeek Harness (:${port})` : 'DeepSeek Harness';
+    this.panel.title = port ? `DeepSeek Harness (Port ${port})` : 'DeepSeek Harness';
   }
 }
 

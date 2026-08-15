@@ -52,7 +52,7 @@ describe('probeDshUrl', () => {
     await expect(probeDshUrl('http://127.0.0.1:3080', 1000)).resolves.toMatchObject({
       reachable: true,
       isDsh: false,
-      error: '响应过大',
+      error: 'Response too large',
     });
   });
 
@@ -72,7 +72,7 @@ describe('probeDshUrl', () => {
     await expect(probeDshUrl('http://127.0.0.1:3080', 1000)).resolves.toMatchObject({
       reachable: true,
       isDsh: false,
-      error: '响应过大',
+      error: 'Response too large',
     });
     expect(cancelled).toBe(true);
   });
@@ -83,7 +83,7 @@ describe('probeDshUrl', () => {
     await expect(probeDshUrl('http://example.com:3080', 1000)).resolves.toMatchObject({
       reachable: false,
       isDsh: false,
-      error: expect.stringMatching(/本机/),
+      error: expect.stringMatching(/local HTTP/),
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -95,7 +95,7 @@ describe('probeDshUrl', () => {
     controller.abort();
     await expect(probeDshUrl('http://127.0.0.1:3080', 1000, controller.signal)).resolves.toMatchObject({
       reachable: false,
-      error: '操作已取消',
+      error: 'Operation cancelled',
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });

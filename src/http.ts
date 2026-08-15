@@ -22,8 +22,8 @@ export async function probeDshUrl(
   signal?: AbortSignal
 ): Promise<ProbeResult> {
   const url = normalizeLoopbackUrl(input);
-  if (!url) return { reachable: false, isDsh: false, error: '只允许本机 HTTP 地址' };
-  if (signal?.aborted) return { reachable: false, isDsh: false, error: '操作已取消' };
+  if (!url) return { reachable: false, isDsh: false, error: 'Only local HTTP addresses are allowed' };
+  if (signal?.aborted) return { reachable: false, isDsh: false, error: 'Operation cancelled' };
 
   const controller = new AbortController();
   const onAbort = () => controller.abort();
@@ -38,11 +38,11 @@ export async function probeDshUrl(
     const declaredLength = Number(response.headers.get('content-length') ?? 0);
     if (declaredLength > MAX_PROBE_BODY) {
       await response.body?.cancel().catch(() => undefined);
-      return { reachable: true, isDsh: false, status: response.status, error: '响应过大' };
+      return { reachable: true, isDsh: false, status: response.status, error: 'Response too large' };
     }
     const bodyResult = await readBodyLimited(response, MAX_PROBE_BODY);
     if (bodyResult.oversized) {
-      return { reachable: true, isDsh: false, status: response.status, error: '响应过大' };
+      return { reachable: true, isDsh: false, status: response.status, error: 'Response too large' };
     }
     const body = bodyResult.text;
     return { reachable: true, isDsh: isDshPage(body), status: response.status };

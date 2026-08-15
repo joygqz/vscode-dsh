@@ -170,7 +170,7 @@ describe('managed lifecycle', () => {
 
   it('rejects a fixed occupied port before spawning', async () => {
     const h = setup({ portCheck: async () => true });
-    await expect(h.manager.start(request({ port: 3080 }))).rejects.toThrow(/端口 3080 已被占用/);
+    await expect(h.manager.start(request({ port: 3080 }))).rejects.toThrow(/Port 3080 is already in use/);
     expect(managedChildren(h)).toHaveLength(0);
     expect(h.manager.getSnapshot().state).toBe('error');
   });
@@ -202,7 +202,7 @@ describe('managed lifecycle', () => {
     managedChildren(h)[0].emitExit(1, null);
 
     await vi.advanceTimersByTimeAsync(9000);
-    await expect(pending).rejects.toThrow(/监听端口仍未释放/);
+    await expect(pending).rejects.toThrow(/listening port was not released/);
     expect(h.manager.getSnapshot()).toMatchObject({ state: 'error', ownership: 'managed' });
   });
 
@@ -212,7 +212,7 @@ describe('managed lifecycle', () => {
     await tick();
     managedChildren(h)[0].stdout.write('dsh web: http://127.0.0.1:43124\n');
 
-    await expect(pending).rejects.toThrow(/就绪端口 43124.*43123/);
+    await expect(pending).rejects.toThrow(/ready port 43124.*43123/);
     expect(h.manager.getSnapshot()).toMatchObject({ state: 'error' });
   });
 
@@ -237,7 +237,7 @@ describe('managed lifecycle', () => {
       },
     });
 
-    await expect(h.manager.start(request())).rejects.toThrow(/无法启动/);
+    await expect(h.manager.start(request())).rejects.toThrow(/Could not start/);
     expect(h.manager.getSnapshot().state).toBe('error');
 
     const retry = h.manager.start(request());
@@ -249,12 +249,12 @@ describe('managed lifecycle', () => {
     const errored = setup();
     const errorPending = errored.manager.start(request());
     managedChildren(errored)[0].emitError(new Error('spawn EACCES'));
-    await expect(errorPending).rejects.toThrow(/无法启动/);
+    await expect(errorPending).rejects.toThrow(/Could not start/);
 
     const exited = setup();
     const exitPending = exited.manager.start(request());
     managedChildren(exited)[0].emitExit(2, null);
-    await expect(exitPending).rejects.toThrow(/就绪前退出/);
+    await expect(exitPending).rejects.toThrow(/exited before it became ready/);
   });
 
   it('times out, terminates the process, and settles the start promise', async () => {
@@ -264,7 +264,7 @@ describe('managed lifecycle', () => {
     await vi.advanceTimersByTimeAsync(5000);
     await tick();
 
-    await expect(pending).rejects.toThrow(/超时/);
+    await expect(pending).rejects.toThrow(/Timed out/);
     expect(h.manager.getSnapshot().state).toBe('error');
     expect(h.spawnCalls.some((call) => isTaskkillCommand(call.command))).toBe(true);
   });
@@ -313,10 +313,10 @@ describe('managed lifecycle', () => {
 
     const stopped = h.manager.stop();
     await vi.advanceTimersByTimeAsync(8500);
-    await expect(stopped).rejects.toThrow(/无法确认/);
+    await expect(stopped).rejects.toThrow(/Could not confirm/);
     expect(h.manager.getSnapshot()).toMatchObject({ state: 'error', ownership: 'managed' });
-    await expect(h.manager.start(request())).rejects.toThrow(/再次执行“停止服务”/);
-    await expect(h.manager.connect('http://127.0.0.1:3080')).rejects.toThrow(/再次执行“停止服务”/);
+    await expect(h.manager.start(request())).rejects.toThrow(/run "Stop Server" again/);
+    await expect(h.manager.connect('http://127.0.0.1:3080')).rejects.toThrow(/run "Stop Server" again/);
 
     child.emitExit(null, 'SIGKILL');
     await tick();
@@ -355,7 +355,7 @@ describe('managed lifecycle', () => {
     const stopped = h.manager.stop();
     expect(h.manager.getSnapshot().state).toBe('stopping');
     await vi.advanceTimersByTimeAsync(9000);
-    await expect(stopped).rejects.toThrow(/监听端口仍未释放/);
+    await expect(stopped).rejects.toThrow(/listening port was not released/);
     expect(h.manager.getSnapshot()).toMatchObject({ state: 'error', ownership: 'managed' });
   });
 
@@ -367,7 +367,7 @@ describe('managed lifecycle', () => {
     await start;
     child.emitExit(1, null);
     await tick();
-    expect(h.manager.getSnapshot()).toMatchObject({ state: 'error', error: expect.stringMatching(/意外退出/) });
+    expect(h.manager.getSnapshot()).toMatchObject({ state: 'error', error: expect.stringMatching(/exited unexpectedly/) });
   });
 
   it('does not let the crash endpoint watcher overwrite a concurrent stop', async () => {
@@ -436,7 +436,7 @@ describe('cancellation and generation isolation', () => {
     const first = h.manager.start(request());
     const oldChild = managedChildren(h)[0];
     oldChild.emitExit(1, null);
-    await expect(first).rejects.toThrow(/就绪前退出/);
+    await expect(first).rejects.toThrow(/exited before it became ready/);
 
     const second = h.manager.start(request());
     const newChild = managedChildren(h)[1];
@@ -457,7 +457,7 @@ describe('cancellation and generation isolation', () => {
     await expect(pending).rejects.toBeInstanceOf(StartCancelledError);
     await disposed;
     expect(managedChildren(h)).toHaveLength(0);
-    await expect(h.manager.start(request())).rejects.toThrow(/关闭/);
+    await expect(h.manager.start(request())).rejects.toThrow(/shutting down/);
   });
 });
 
@@ -481,10 +481,10 @@ describe('external connections', () => {
 
   it('rejects unreachable and non-DSH endpoints', async () => {
     const unreachable = setup({ probe: async () => ({ reachable: false, isDsh: false, error: 'refused' }) });
-    await expect(unreachable.manager.connect('http://127.0.0.1:3080')).rejects.toThrow(/无法连接/);
+    await expect(unreachable.manager.connect('http://127.0.0.1:3080')).rejects.toThrow(/Could not connect/);
 
     const other = setup({ probe: async () => ({ reachable: true, isDsh: false, status: 404 }) });
-    await expect(other.manager.connect('http://127.0.0.1:3080')).rejects.toThrow(/不是 DeepSeek Harness/);
+    await expect(other.manager.connect('http://127.0.0.1:3080')).rejects.toThrow(/not the DeepSeek Harness Web service/);
   });
 
   it('cancels an external probe that never settles', async () => {
@@ -499,7 +499,7 @@ describe('external connections', () => {
   it('does not coalesce simultaneous connections to different targets', async () => {
     const h = setup({ probe: () => new Promise<ProbeResult>(() => {}) });
     const first = h.manager.connect('http://127.0.0.1:3080');
-    await expect(h.manager.connect('http://127.0.0.1:3081')).rejects.toThrow(/正在连接/);
+    await expect(h.manager.connect('http://127.0.0.1:3081')).rejects.toThrow(/Already connecting/);
     const cancelled = h.manager.cancelStart();
     await expect(first).rejects.toBeInstanceOf(StartCancelledError);
     await cancelled;
@@ -513,7 +513,7 @@ describe('external connections', () => {
     await h.manager.connect('http://127.0.0.1:3080');
     available = false;
     await expect(h.manager.revalidateExternal()).resolves.toBe(false);
-    expect(h.manager.getSnapshot()).toMatchObject({ state: 'error', error: expect.stringMatching(/连接已断开/) });
+    expect(h.manager.getSnapshot()).toMatchObject({ state: 'error', error: expect.stringMatching(/connection to the external DeepSeek Harness was lost/) });
   });
 
   it('cancels an external revalidation probe that ignores AbortSignal', async () => {
@@ -535,6 +535,6 @@ describe('external connections', () => {
   it('refuses to restart an external service', async () => {
     const h = setup({ probe: async () => ({ reachable: true, isDsh: true }) });
     await h.manager.connect('http://127.0.0.1:3080');
-    await expect(h.manager.restart(request())).rejects.toThrow(/不能重启/);
+    await expect(h.manager.restart(request())).rejects.toThrow(/cannot be restarted/);
   });
 });

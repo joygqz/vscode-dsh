@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "运行扩展 (Extension Host)",
+      "name": "Run Extension",
       "type": "extensionHost",
       "request": "launch",
       "args": [

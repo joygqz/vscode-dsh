@@ -19,11 +19,11 @@ export async function resolveWorkingDirectory(
     if (candidate === '~') candidate = homedir();
     else if (/^~[\\/]/.test(candidate)) candidate = resolve(homedir(), candidate.slice(2));
     if (candidate.includes('${workspaceFolder}') && !base) {
-      throw new Error('vscode-dsh.workingDirectory 使用了 ${workspaceFolder}，但当前没有打开工作区文件夹');
+      throw new Error('vscode-dsh.workingDirectory uses ${workspaceFolder}, but no workspace folder is open');
     }
     candidate = candidate.replace(/\$\{workspaceFolder\}/g, () => base?.uri.fsPath ?? '');
     if (!isAbsolute(candidate)) {
-      if (!base) throw new Error('相对 workingDirectory 需要先在 VS Code 中打开工作区文件夹');
+      if (!base) throw new Error('A relative workingDirectory requires an open workspace folder in VS Code');
       candidate = resolve(base.uri.fsPath, candidate);
     }
     await assertDirectory(candidate);
@@ -36,35 +36,35 @@ export async function resolveWorkingDirectory(
   if (folders.length > 1) {
     const picked = await vscode.window.showQuickPick(
       folders.map((folder) => ({ label: folder.name, description: folder.uri.fsPath, folder })),
-      { title: '选择 DeepSeek Harness 使用的工作目录', placeHolder: '选择一个 VS Code 工作区文件夹' }
+      { title: 'Select Working Directory for DeepSeek Harness', placeHolder: 'Select a VS Code workspace folder' }
     );
     return picked?.folder.uri.fsPath;
   }
 
   if (!interactive) return undefined;
   const selected = await vscode.window.showOpenDialog({
-    title: '选择 DeepSeek Harness 使用的工作目录',
+    title: 'Select Working Directory for DeepSeek Harness',
     canSelectFiles: false,
     canSelectFolders: true,
     canSelectMany: false,
-    openLabel: '使用此文件夹',
+    openLabel: 'Use This Folder',
   });
   const path = selected?.[0]?.fsPath;
   if (!path) return undefined;
   const confirmed = await vscode.window.showWarningMessage(
-    `DeepSeek Harness 将能读写此目录并执行命令：${path}`,
-    { modal: true, detail: '空窗口没有 Workspace Trust 边界。请只选择你完全信任的目录。' },
-    '信任并使用'
+    `DeepSeek Harness will be able to read and write this directory and run commands: ${path}`,
+    { modal: true, detail: 'An empty window has no Workspace Trust boundary. Only choose a directory you fully trust.' },
+    'Trust and Use'
   );
-  return confirmed === '信任并使用' ? path : undefined;
+  return confirmed === 'Trust and Use' ? path : undefined;
 }
 
 async function assertDirectory(path: string): Promise<void> {
-  if (!path) throw new Error('vscode-dsh.workingDirectory 无法解析，请选择有效目录');
+  if (!path) throw new Error('vscode-dsh.workingDirectory could not be resolved; choose a valid directory');
   try {
     const info = await stat(path);
     if (!info.isDirectory()) throw new Error('not a directory');
   } catch {
-    throw new Error(`工作目录不存在或不是文件夹：${path}`);
+    throw new Error(`Working directory does not exist or is not a folder: ${path}`);
   }
 }

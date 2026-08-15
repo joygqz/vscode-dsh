@@ -15,21 +15,21 @@ const RESERVED_WEB_FLAGS = ['--host', '--port', '--patch'];
 /** Validate process-affecting configuration before any executable is launched. */
 export function validateLaunchSettings(settings: DshSettings): void {
   if (!settings.packageSpec.trim() || settings.packageSpec.startsWith('-')) {
-    throw new Error('扩展内置的 DSH npm 包标识无效');
+    throw new Error('The built-in DSH npm package spec is invalid');
   }
   if (!Number.isInteger(settings.port) || settings.port < 0 || settings.port > 65535) {
-    throw new Error('vscode-dsh.port 必须是 0 到 65535 之间的整数');
+    throw new Error('vscode-dsh.port must be an integer between 0 and 65535');
   }
   if (!Number.isFinite(settings.startupTimeout) || settings.startupTimeout < 5) {
-    throw new Error('vscode-dsh.startupTimeout 必须至少为 5 秒');
+    throw new Error('vscode-dsh.startupTimeout must be at least 5 seconds');
   }
   const reserved = settings.webArgs.find((arg) =>
     RESERVED_WEB_FLAGS.some((flag) => arg === flag || arg.startsWith(`${flag}=`))
   );
   if (reserved) {
     throw new Error(
-      `${reserved} 由扩展管理，不能放入 vscode-dsh.webArgs；` +
-        '`--patch` 可能改写监听安全边界，因此本扩展不支持'
+      `${reserved} is managed by the extension and cannot be placed in vscode-dsh.webArgs; ` +
+        '`--patch` can rewrite the listening security boundary and is not supported by this extension'
     );
   }
 }
@@ -45,7 +45,7 @@ export function buildSpawnSpec(
 ): SpawnSpec {
   validateLaunchSettings(settings);
   if (!(platform === 'win32' ? win32.isAbsolute(npxExecutable) : npxExecutable.startsWith('/'))) {
-    throw new Error('npx 可执行文件必须先解析为绝对路径');
+    throw new Error('The npx executable must be resolved to an absolute path first');
   }
 
   const npxArgs = ['--yes', settings.packageSpec, 'web'];
@@ -57,10 +57,10 @@ export function buildSpawnSpec(
     // argument. Reject the two characters that cmd expands even inside quotes.
     const unsafe = npxArgs.find((arg) => /[%"\r\n\0]/.test(arg));
     if (unsafe !== undefined) {
-      throw new Error('Windows 上的 package 与 webArgs 不能包含 %、双引号或换行符');
+      throw new Error('The package and webArgs cannot contain %, double quotes, or newlines on Windows');
     }
     if (/[%"\r\n\0]/.test(npxExecutable)) {
-      throw new Error('Windows 上的 npx 路径不能包含 %、双引号或换行符');
+      throw new Error('The npx path cannot contain %, double quotes, or newlines on Windows');
     }
     const systemRoot = process.env.SystemRoot ?? 'C:\\Windows';
     const configuredShell = process.env.ComSpec;

@@ -47,14 +47,14 @@ describe('home lease', () => {
       update: { childPid: 303 },
       processAlive: (pid: number) => pid === 303,
       endpointInUse: () => false,
-      message: 'DSH 子进程 PID 303',
+      message: 'DSH child process PID 303',
     },
     {
       name: 'an occupied endpoint',
       update: { port: 43123 },
       processAlive: () => false,
       endpointInUse: (port: number) => port === 43123,
-      message: '本机端口 43123',
+      message: 'local port 43123',
     },
   ])('rejects takeover while $name remains active', async (scenario) => {
     const home = await temporaryHome();

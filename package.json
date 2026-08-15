@@ -1,7 +1,7 @@
 {
   "name": "vscode-dsh",
   "displayName": "DeepSeek Harness Launcher",
-  "description": "在 VS Code 中一键启动、打开并管理 DeepSeek Harness Web UI。",
+  "description": "Start, open, and manage the DeepSeek Harness Web UI from VS Code.",
   "version": "0.2.0",
   "publisher": "joygqz",
   "preview": true,
@@ -41,7 +41,7 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "DeepSeek Harness 能读写文件并执行命令，因此只有在工作区受信任后才能启动或连接。",
+      "description": "DeepSeek Harness can read and write files and run commands, so it can only be started or connected after the workspace is trusted.",
       "restrictedConfigurations": [
         "vscode-dsh.startupBehavior",
         "vscode-dsh.port",
@@ -52,108 +52,108 @@
     },
     "virtualWorkspaces": {
       "supported": false,
-      "description": "DeepSeek Harness 需要工作区所在环境中可由扩展进程访问的真实文件系统目录。"
+      "description": "DeepSeek Harness needs a real filesystem directory that is accessible to the extension process in the workspace's environment."
     }
   },
   "contributes": {
     "commands": [
       {
         "command": "vscode-dsh.open",
-        "title": "打开",
+        "title": "Open",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(rocket)",
         "enablement": "vscode-dsh.state == stopped || vscode-dsh.state == running || vscode-dsh.state == error && !vscode-dsh.managed"
       },
       {
         "command": "vscode-dsh.start",
-        "title": "启动服务",
+        "title": "Start Server",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(play)",
         "enablement": "vscode-dsh.state == stopped || vscode-dsh.state == error && !vscode-dsh.managed"
       },
       {
         "command": "vscode-dsh.openInBrowser",
-        "title": "在浏览器中打开",
+        "title": "Open in Browser",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(link-external)",
         "enablement": "vscode-dsh.state == stopped || vscode-dsh.state == running || vscode-dsh.state == error && !vscode-dsh.managed"
       },
       {
         "command": "vscode-dsh.openInEditor",
-        "title": "在 VS Code 中打开",
+        "title": "Open in VS Code",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(open-preview)",
         "enablement": "vscode-dsh.state == stopped || vscode-dsh.state == running || vscode-dsh.state == error && !vscode-dsh.managed"
       },
       {
         "command": "vscode-dsh.connect",
-        "title": "连接到运行中的服务…",
+        "title": "Connect to Running Server…",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(plug)",
         "enablement": "vscode-dsh.state == stopped || vscode-dsh.state == error && !vscode-dsh.managed"
       },
       {
         "command": "vscode-dsh.stop",
-        "title": "停止服务",
+        "title": "Stop Server",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(debug-stop)",
         "enablement": "vscode-dsh.managed && (vscode-dsh.state == running || vscode-dsh.state == error)"
       },
       {
         "command": "vscode-dsh.disconnect",
-        "title": "断开外部服务",
+        "title": "Disconnect External Server",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(debug-disconnect)",
         "enablement": "vscode-dsh.state == running && vscode-dsh.external"
       },
       {
         "command": "vscode-dsh.restart",
-        "title": "重启服务",
+        "title": "Restart Server",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(refresh)",
         "enablement": "vscode-dsh.state == running && vscode-dsh.managed"
       },
       {
         "command": "vscode-dsh.cancel",
-        "title": "取消当前操作",
+        "title": "Cancel Current Operation",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(close)",
         "enablement": "vscode-dsh.state == starting"
       },
       {
         "command": "vscode-dsh.copyUrl",
-        "title": "复制访问地址",
+        "title": "Copy Access URL",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(copy)",
         "enablement": "vscode-dsh.hasUrl"
       },
       {
         "command": "vscode-dsh.showLogs",
-        "title": "显示输出",
+        "title": "Show Output",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(output)"
       },
       {
         "command": "vscode-dsh.openSettings",
-        "title": "打开设置",
+        "title": "Open Settings",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(settings-gear)"
       },
       {
         "command": "vscode-dsh.webview.refresh",
-        "title": "刷新 DeepSeek Harness",
+        "title": "Refresh DeepSeek Harness",
         "icon": "$(refresh)",
         "enablement": "vscode-dsh.hasUrl"
       },
       {
         "command": "vscode-dsh.webview.openBrowser",
-        "title": "在浏览器中打开",
+        "title": "Open in Browser",
         "icon": "$(link-external)",
         "enablement": "vscode-dsh.hasUrl"
       },
       {
         "command": "vscode-dsh.webview.copyUrl",
-        "title": "复制访问地址",
+        "title": "Copy Access URL",
         "icon": "$(copy)",
         "enablement": "vscode-dsh.hasUrl"
       }
@@ -230,14 +230,14 @@
             "startAndOpen"
           ],
           "enumDescriptions": [
-            "需要时手动启动",
-            "VS Code 启动后静默启动服务",
-            "VS Code 启动后启动服务并打开界面"
+            "Start manually when needed",
+            "Start the server silently after VS Code starts",
+            "Start the server and open the UI after VS Code starts"
           ],
           "default": "manual",
           "scope": "window",
           "order": 10,
-          "markdownDescription": "扩展激活后的行为。自动启动要求工作区受信任且能解析到真实工作目录；未配置 workingDirectory 时需要已打开的文件夹，多根工作区默认使用第一个。"
+          "markdownDescription": "What the extension does after activation. Automatic startup requires a trusted workspace and a resolvable real working directory. When `workingDirectory` is not set, an open folder is required; multi-root workspaces default to the first folder."
         },
         "vscode-dsh.openLocation": {
           "type": "string",
@@ -246,13 +246,13 @@
             "editor"
           ],
           "enumDescriptions": [
-            "使用系统默认浏览器",
-            "在 VS Code 编辑器区域中打开"
+            "Use the system default browser",
+            "Open in the VS Code editor area"
           ],
           "default": "browser",
           "scope": "window",
           "order": 20,
-          "markdownDescription": "启动命令和状态栏按钮使用的默认位置。"
+          "markdownDescription": "The default location used by the start command and the status bar button."
         },
         "vscode-dsh.port": {
           "type": "integer",
@@ -261,7 +261,7 @@
           "maximum": 65535,
           "scope": "window",
           "order": 30,
-          "markdownDescription": "托管服务的端口。`0`（推荐）会为每个 VS Code 窗口自动选择空闲端口；固定端口被占用时扩展不会静默连接或覆盖其它实例。"
+          "markdownDescription": "Port for the managed server. `0` (recommended) picks a free port for each VS Code window automatically. When a fixed port is in use, the extension does not silently connect or overwrite other instances."
         },
         "vscode-dsh.startupTimeout": {
           "type": "integer",
@@ -269,14 +269,14 @@
           "minimum": 5,
           "scope": "window",
           "order": 40,
-          "markdownDescription": "等待服务完全就绪的最长秒数。首次运行需要从 npm 下载依赖。"
+          "markdownDescription": "Maximum seconds to wait for the server to become fully ready. The first run downloads dependencies from npm."
         },
         "vscode-dsh.workingDirectory": {
           "type": "string",
           "default": "",
           "scope": "window",
           "order": 50,
-          "markdownDescription": "DSH 进程的启动与默认 workspace 上下文，会影响其加载的项目指令和 `.env`。留空时手动启动优先使用活动编辑器所在文件夹；支持绝对路径、相对工作区路径、`~` 和 `${workspaceFolder}`。"
+          "markdownDescription": "Launch and default workspace context for the DSH process; it affects the project instructions and `.env` files DSH loads. When empty, manual startup prefers the folder of the active editor. Supports absolute paths, workspace-relative paths, `~`, and `${workspaceFolder}`."
         },
         "vscode-dsh.webArgs": {
           "type": "array",
@@ -286,7 +286,7 @@
           "default": [],
           "scope": "window",
           "order": 100,
-          "markdownDescription": "高级：附加的 DSH Web 参数，例如 `[\"--trusted-host\", \"proxy.example.test\"]`。不能包含扩展管理的 `--host`、`--port` 或 `--patch`；trusted-host 不是身份验证。"
+          "markdownDescription": "Advanced: extra DSH Web arguments, for example `[\"--trusted-host\", \"proxy.example.test\"]`. Must not contain the extension-managed `--host`, `--port`, or `--patch`; trusted-host is not authentication."
         },
         "vscode-dsh.environment": {
           "type": "object",
@@ -296,7 +296,7 @@
           },
           "scope": "window",
           "order": 110,
-          "markdownDescription": "高级：用于检查 Node/npx 并启动托管 DSH 的环境变量，可覆盖 PATH。DSH_HOME 由扩展按工作区隔离并忽略这里的同名值；API Key 请在 DSH 的 Settings → Models 中配置。"
+          "markdownDescription": "Advanced: environment variables used to check Node/npx and launch the managed DSH; may override PATH. DSH_HOME is isolated per workspace by the extension and a same-named value here is ignored. Configure API keys in DSH's Settings → Models."
         }
       }
     }

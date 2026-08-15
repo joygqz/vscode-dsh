@@ -15,7 +15,7 @@ export function findAvailableLoopbackPort(): Promise<number> {
       const port = typeof address === 'object' && address ? address.port : 0;
       server.close((error) => {
         if (error) reject(error);
-        else if (!port) reject(new Error('无法分配 DeepSeek Harness 监听端口'));
+        else if (!port) reject(new Error('Could not allocate a listening port for DeepSeek Harness'));
         else resolve(port);
       });
     });
