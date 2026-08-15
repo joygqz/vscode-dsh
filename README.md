@@ -13,6 +13,8 @@ Start, open, and manage the [DeepSeek Harness](https://github.com/deepseek-ai/de
 - A trusted local, SSH, WSL, Dev Container, or Codespaces workspace.
 - An API key for a model you have access to (configured inside the Harness page; this extension does not read or store it).
 
+Harness can read and write files and run commands: the extension does not start or connect services in Restricted Mode, and it asks for confirmation again when choosing a directory from an empty window.
+
 ## Installation
 
 Search for **DeepSeek Harness Launcher** in the Extensions view (`Ctrl/Cmd+Shift+X`), or install the `.vsix` from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=joygqz.vscode-dsh), [Open VSX](https://open-vsx.org/extension/joygqz/vscode-dsh), or [GitHub Releases](https://github.com/joygqz/vscode-dsh/releases).
@@ -20,7 +22,7 @@ Search for **DeepSeek Harness Launcher** in the Extensions view (`Ctrl/Cmd+Shift
 ## Quick start
 
 1. Open and trust a project folder, then click `DSH` in the status bar or run `DeepSeek Harness Launcher: Open`.
-2. The first run fetches DSH through npm. The status bar shows "Working"; click it to cancel or view the output.
+2. The first run fetches DSH through npm. The status bar shows `DSH Working…`; click it to cancel or view the output.
 3. Once the page opens, add your API key under `Settings → Models` in Harness, then confirm a directory in `Choose workspace` and start a session.
 
 `workingDirectory` is DSH's launch directory and default workspace context, which affects `AGENTS.md`, `CLAUDE.md`, cwd `.env`, and similar files.
@@ -31,18 +33,20 @@ Search for **DeepSeek Harness Launcher** in the Extensions view (`Ctrl/Cmd+Shift
 
 | Command | Purpose |
 | --- | --- |
-| `Start Server` / `Stop Server` / `Restart Server` | Start, stop, or apply new settings |
-| `Open in Browser` / `Open in VS Code` | Choose where to open (browser by default) |
-| `Cancel Current Operation` | Cancel checks, startup, restart, or connection |
-| `Connect to Running Server…` / `Disconnect External Server` | Connect to an external DSH; disconnecting does not stop it |
+| `Open` | Start if needed, or open the running UI |
+| `Start Server` | Start the server without opening the page |
+| `Open in Browser` / `Open in VS Code` | Start if needed, then open in the chosen location |
+| `Stop Server` | Stop the hosted server; run it again if cleanup failed |
+| `Restart Server` | Apply new settings; reuses the selected directory when `workingDirectory` is unchanged |
+| `Cancel Current Operation` | Cancel an environment check, startup, restart, or connection in progress |
+| `Connect to Running Server…` | Connect to an existing DSH in this environment |
+| `Disconnect External Server` | Stop tracking an external DSH without stopping its process |
 | `Copy Access URL` | Copy the full address a client can use |
 | `Show Output` / `Open Settings` | Open the output panel or extension settings |
 
-The status bar shows, in order: untrusted, not running, working, stopping, `DSH: port` (hosted by this window), a link icon (external server), `DSH: port*` (settings changed), or an error icon (hover for details).
+The status bar shows: shield + `DSH` (untrusted), `DSH` (not running), `DSH Working…` (click to cancel or view output), `DSH Stopping…` (click for output), `DSH: port` (hosted by this window), link icon + `DSH: port` (external server), `DSH: port*` (settings changed; click to restart and apply), or error icon + `DSH` (hover for details and click for recovery actions).
 
 ## Settings
-
-Settings apply per window; version 0.2 and later uses `vscode-dsh.*`, and the old `dsh.*` keys no longer work.
 
 | Setting | Default | Description |
 | --- | --- | --- |
@@ -50,13 +54,13 @@ Settings apply per window; version 0.2 and later uses `vscode-dsh.*`, and the ol
 | `openLocation` | `browser` | Use the system `browser` or VS Code's `editor` for the primary command |
 | `port` | `0` | Pick a free port automatically. When a fixed port is taken, the extension does not attach to other instances |
 | `startupTimeout` | `120` | Maximum seconds to wait for DSH to become ready |
-| `workingDirectory` | empty | Launch and default workspace context; supports absolute paths, relative paths, `~`, and `${workspaceFolder}` |
+| `workingDirectory` | empty | Launch and default workspace context; supports absolute paths, relative paths, `~`, and `${workspaceFolder}`. Relative paths require an open workspace folder |
 | `webArgs` | `[]` | Extra DSH Web arguments (must not include `--host`, `--port`, or `--patch`) |
 | `environment` | `{}` | Process environment variables; may override `PATH`, cannot override `DSH_HOME` |
 
 ## Managed and external servers
 
-- A managed server is started by the extension and stored in workspace-specific storage. Multiple windows in the same workspace are kept from writing concurrently by a single-writer lease. "Stop Server" waits for the session to clean up, then force-ends it and confirms the port was released.
+- A managed server is started by the extension. Its data lives in VS Code's workspace-scoped storage (global storage in empty windows), and a single-writer lease keeps multiple windows from writing to the same data directory concurrently. "Stop Server" waits for the session to clean up, then force-ends it and confirms the port was released.
 - An external server can only be connected explicitly through an HTTP loopback address in this environment (for example `http://127.0.0.1:3080`). It supports open, copy, refresh, and disconnect only; the extension never stops it, and it keeps its own data directory.
 - Each window manages one server; different workspaces manage their own DSH processes.
 

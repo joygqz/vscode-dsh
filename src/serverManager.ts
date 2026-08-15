@@ -1,6 +1,7 @@
 import { spawn, type SpawnOptions } from 'node:child_process';
 import { win32 } from 'node:path';
 import { buildSpawnSpec, formatSpawnSpec, validateLaunchSettings } from './args';
+import { acquireHomeLease } from './homeLease';
 import { isPortInUse, probeDshUrl, type PortCheckFn, type ProbeFn } from './http';
 import { mergeEnvironment } from './environment';
 import { normalizeLoopbackUrl, portFromUrl } from './parse';
@@ -24,11 +25,20 @@ export interface ChildLike {
 export type SpawnImpl = (command: string, args: string[], options: SpawnOptions) => ChildLike;
 export type LogFn = (message: string, kind: 'info' | 'data') => void;
 
+/** Single-writer lease for a managed DSH data directory. */
+export interface ManagedHomeLease {
+  release(): Promise<void>;
+  update?(patch: { childPid?: number | null; port?: number | null }): Promise<unknown>;
+}
+
+export type LeaseAcquireFn = (homeDirectory: string) => Promise<ManagedHomeLease>;
+
 export interface ManagerDeps {
   log: LogFn;
   onChanged: (snapshot: ServerSnapshot) => void;
   onManagedProcessSpawned?: (pid: number | undefined) => void | Promise<void>;
   onManagedProcessReady?: (url: string) => void | Promise<void>;
+  acquireLease?: LeaseAcquireFn;
   platform?: NodeJS.Platform;
   spawnImpl?: SpawnImpl;
   probeImpl?: ProbeFn;
@@ -53,6 +63,7 @@ interface Run {
   failed: Deferred<Error>;
   exited: Deferred<ExitInfo>;
   child?: ChildLike;
+  lease?: ManagedHomeLease;
   url?: string;
   expectedPort?: number;
   ignoreExpectedPortOnCleanup: boolean;
@@ -113,12 +124,14 @@ export class DshServerManager {
   private readonly spawnImpl: SpawnImpl;
   private readonly probeImpl: ProbeFn;
   private readonly portCheckImpl: PortCheckFn;
+  private readonly acquireLease: LeaseAcquireFn;
 
   constructor(private readonly deps: ManagerDeps) {
     this.platform = deps.platform ?? process.platform;
     this.spawnImpl = deps.spawnImpl ?? ((command, args, options) => spawn(command, args, options));
     this.probeImpl = deps.probeImpl ?? probeDshUrl;
     this.portCheckImpl = deps.portCheckImpl ?? isPortInUse;
+    this.acquireLease = deps.acquireLease ?? ((homeDirectory) => acquireHomeLease(homeDirectory));
   }
 
   getSnapshot(): ServerSnapshot {
@@ -249,6 +262,7 @@ export class DshServerManager {
 
     run.abort.abort();
     if (!run.child || this.snapshot.ownership === 'external') {
+      await this.releaseLease(run);
       if (this.isCurrent(run)) this.run = undefined;
       this.setSnapshot({ state: 'stopped' });
       return;
@@ -290,6 +304,9 @@ export class DshServerManager {
         }
       }
 
+      if (request.homeDirectory) {
+        run.lease = await awaitAbortable(this.acquireLease(request.homeDirectory), run.abort.signal);
+      }
       this.assertCurrent(run);
       const spec = buildSpawnSpec(settings, request.npxPath, this.platform);
       let child: ChildLike;
@@ -308,6 +325,7 @@ export class DshServerManager {
 
       run.child = child;
       this.attachChild(run);
+      await this.updateLease(run, { childPid: child.pid });
       try {
         await awaitAbortable(
           Promise.resolve(this.deps.onManagedProcessSpawned?.(child.pid)),
@@ -342,6 +360,7 @@ export class DshServerManager {
       this.assertCurrent(run);
 
       run.url = url;
+      await this.updateLease(run, { port: portFromUrl(url) });
       this.setSnapshot({ state: 'running', url, ownership: 'managed', cwd });
       this.deps.log(`Server ready: ${url}`, 'info');
       return { kind: 'started', url };
@@ -579,9 +598,15 @@ export class DshServerManager {
     forceWaitMs = FORCE_KILL_WAIT_MS
   ): Promise<void> {
     const child = run.child;
-    if (!child) return;
+    if (!child) {
+      await this.releaseLease(run);
+      return;
+    }
     // A failed spawn has no operating-system process to wait for.
-    if (!child.pid && run.failed.settled) return;
+    if (!child.pid && run.failed.settled) {
+      await this.releaseLease(run);
+      return;
+    }
 
     let forced = false;
     if (!run.exited.settled) {
@@ -596,11 +621,17 @@ export class DshServerManager {
       }
     }
 
-    if (await this.waitForEndpointRelease(run, forced ? 250 : graceMs)) return;
+    if (await this.waitForEndpointRelease(run, forced ? 250 : graceMs)) {
+      await this.releaseLease(run);
+      return;
+    }
     if (!forced) {
       this.deps.log('The launcher exited but the listening port is still in use; force-cleaning the remaining process tree', 'info');
       this.signalRun(run, true);
-      if (await this.waitForEndpointRelease(run, forceWaitMs)) return;
+      if (await this.waitForEndpointRelease(run, forceWaitMs)) {
+        await this.releaseLease(run);
+        return;
+      }
     }
     throw new Error('The DeepSeek Harness launcher exited but the listening port was not released; ownership is retained and you can run "Stop Server" again');
   }
@@ -625,11 +656,33 @@ export class DshServerManager {
   private async releaseOwnershipWhenEndpointGone(run: Run, message: string): Promise<void> {
     try {
       if (!(await this.waitForEndpointRelease(run, 600)) || !this.isCurrent(run)) return;
+      await this.releaseLease(run);
       if (this.snapshot.state !== 'error' || this.snapshot.ownership !== 'managed') return;
       this.run = undefined;
       this.setSnapshot({ state: 'error', error: `${message}; it is safe to retry now` });
     } catch (error) {
       this.deps.log(`Failed to check the remaining listening port: ${normalizeError(error).message}`, 'info');
+    }
+  }
+
+  /** Persist process metadata on the lease so a newer window can detect staleness. */
+  private async updateLease(
+    run: Run,
+    patch: { childPid?: number | null; port?: number | null }
+  ): Promise<void> {
+    if (!run.lease?.update) return;
+    await run.lease.update(patch);
+  }
+
+  /** Release the lease exactly once and keep failures non-fatal to the stop path. */
+  private async releaseLease(run: Run): Promise<void> {
+    const lease = run.lease;
+    run.lease = undefined;
+    if (!lease) return;
+    try {
+      await lease.release();
+    } catch (error) {
+      this.deps.log(`Failed to release the DeepSeek Harness data directory lease: ${normalizeError(error).message}`, 'info');
     }
   }
 

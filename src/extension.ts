@@ -62,7 +62,10 @@ class ExtensionApp {
   private disposed = false;
 
   constructor(context: vscode.ExtensionContext) {
-    this.dshHome = context.globalStorageUri.fsPath;
+    // Workspace-scoped when a workspace is open so each workspace keeps its
+    // own models, sessions, and settings; empty windows fall back to global
+    // storage and are still protected by the single-writer lease.
+    this.dshHome = context.storageUri?.fsPath ?? context.globalStorageUri.fsPath;
     this.manager = new DshServerManager({
       log: (message, kind) => this.logger.log(message, kind),
       onChanged: (snapshot) => this.onStateChanged(snapshot),
@@ -229,7 +232,12 @@ class ExtensionApp {
     const launchSettings = withVerifiedRuntime(remoteSettings, runtime, environment, this.dshHome);
     validateLaunchSettings(launchSettings);
     this.throwIfCancelled(signal);
-    const request: LaunchRequest = { settings: launchSettings, cwd, npxPath: runtime.npxPath };
+    const request: LaunchRequest = {
+      settings: launchSettings,
+      cwd,
+      npxPath: runtime.npxPath,
+      homeDirectory: this.dshHome,
+    };
     this.launchFingerprint = launchSettingsFingerprint(settings);
     this.launchedWorkingDirectorySetting = settings.workingDirectory;
     this.restartRequired = false;
@@ -435,7 +443,12 @@ class ExtensionApp {
     validateLaunchSettings(launchSettings);
     buildSpawnSpec(launchSettings, runtime.npxPath);
     this.throwIfCancelled(signal);
-    const request: LaunchRequest = { settings: launchSettings, cwd, npxPath: runtime.npxPath };
+    const request: LaunchRequest = {
+      settings: launchSettings,
+      cwd,
+      npxPath: runtime.npxPath,
+      homeDirectory: this.dshHome,
+    };
 
     this.launchFingerprint = launchSettingsFingerprint(settings);
     this.launchedWorkingDirectorySetting = settings.workingDirectory;

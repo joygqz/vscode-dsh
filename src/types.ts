@@ -68,4 +68,9 @@ export interface LaunchRequest {
   cwd: string;
   /** Absolute npx executable resolved before switching into the workspace cwd. */
   npxPath: string;
+  /**
+   * DSH data directory guarded by the single-writer lease. Managed launches
+   * only; external connections use their own data directory.
+   */
+  homeDirectory?: string;
 }

@@ -296,7 +296,7 @@
           },
           "scope": "window",
           "order": 110,
-          "markdownDescription": "Advanced: environment variables used to check Node/npx and launch the managed DSH; may override PATH. DSH_HOME is isolated per workspace by the extension and a same-named value here is ignored. Configure API keys in DSH's Settings → Models."
+          "markdownDescription": "Advanced: environment variables used to check Node/npx and launch the managed DSH; may override PATH. DSH_HOME is isolated per workspace by the extension (global storage in empty windows) and a same-named value here is ignored. Configure API keys in DSH's Settings → Models."
         }
       }
     }

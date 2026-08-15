@@ -7,6 +7,7 @@ import {
   PortConflictError,
   StartCancelledError,
   type ChildLike,
+  type LeaseAcquireFn,
   type SpawnImpl,
 } from '../serverManager';
 import { DEFAULT_SETTINGS, type DshSettings, type LaunchRequest, type ServerSnapshot } from '../types';
@@ -52,6 +53,7 @@ interface SetupOptions {
   portCheck?: PortCheckFn;
   probe?: ProbeFn;
   spawn?: SpawnImpl;
+  acquireLease?: LeaseAcquireFn;
   taskkillExits?: boolean | 'force';
 }
 
@@ -59,8 +61,17 @@ function makeSettings(overrides: Partial<DshSettings> = {}): DshSettings {
   return { ...DEFAULT_SETTINGS, ...overrides };
 }
 
-function request(overrides: Partial<DshSettings> = {}, cwd = '/tmp/project'): LaunchRequest {
-  return { settings: makeSettings(overrides), cwd, npxPath: 'C:\\Program Files\\nodejs\\npx.cmd' };
+function request(
+  overrides: Partial<DshSettings> = {},
+  cwd = '/tmp/project',
+  homeDirectory?: string
+): LaunchRequest {
+  return {
+    settings: makeSettings(overrides),
+    cwd,
+    npxPath: 'C:\\Program Files\\nodejs\\npx.cmd',
+    homeDirectory,
+  };
 }
 
 function isTaskkillCommand(command: string): boolean {
@@ -100,6 +111,7 @@ function setup(options: SetupOptions = {}): Harness {
     spawnImpl: options.spawn ?? defaultSpawn,
     portCheckImpl: portCheck,
     probeImpl: probe,
+    acquireLease: options.acquireLease,
   });
 
   return { manager, children, spawnCalls, snapshots, portCheck, probe };
@@ -134,6 +146,38 @@ describe('managed lifecycle', () => {
       ownership: 'managed',
       cwd: '/tmp/project',
     });
+  });
+
+  it('acquires the data-directory lease before spawning and releases it on stop', async () => {
+    const release = vi.fn(async () => undefined);
+    const updates: Array<{ childPid?: number | null; port?: number | null }> = [];
+    const h = setup({
+      acquireLease: vi.fn(async (homeDirectory) => {
+        expect(homeDirectory).toBe('/data/vscode-dsh');
+        return {
+          release,
+          update: async (patch: { childPid?: number | null; port?: number | null }) => {
+            updates.push(patch);
+          },
+        };
+      }),
+    });
+
+    const pending = h.manager.start(request({}, '/tmp/project', '/data/vscode-dsh'));
+    await tick();
+    const child = managedChildren(h)[0];
+    child.stdout.write('dsh web: http://127.0.0.1:45678\n');
+    await pending;
+
+    expect(updates).toEqual([
+      { childPid: child.pid },
+      { port: 45678 },
+    ]);
+    expect(release).not.toHaveBeenCalled();
+
+    await h.manager.stop();
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(h.manager.getSnapshot().state).toBe('stopped');
   });
 
   it('recognizes a split readiness signal written to stderr', async () => {
