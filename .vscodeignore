@@ -3,6 +3,7 @@
 src/**
 scripts/**
 node_modules/**
+.pnpm-store/**
 dist/**/*.map
 *.vsix
 pnpm-lock.yaml

@@ -1,55 +1,54 @@
-/**
- * Pure string helpers for dsh output and URL handling. No side effects, no
- * imports — fully unit-testable.
- */
+/** Pure URL and output parsing helpers. */
 
-/** Matches the readiness line printed by the dsh web app: `dsh web: http://…`. */
-const URL_LINE_RE = /dsh web:\s+(https?:\/\/\S+)/;
+// CSI and the common single-character ANSI sequences. DSH may color console output.
+const ANSI_RE = /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d\/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g;
+const URL_LINE_RE = /(?:^|[\r\n])\s*dsh web:\s+(http:\/\/[^\s]+)/m;
 
-/**
- * Extract the canonical GUI URL from a dsh stdout line. The dsh web app prints
- * `dsh web: http://127.0.0.1:<port>` (optionally followed by a LAN address)
- * once the server has bound its port.
- */
-export function parseWebUrlFromLine(line: string): string | null {
-  const match = URL_LINE_RE.exec(line);
-  return match ? match[1] : null;
+export function stripAnsi(value: string): string {
+  return value.replace(ANSI_RE, '');
 }
 
-/** Parse the port out of an http(s) URL, or null when absent/invalid. */
-export function portFromUrl(url: string): number | null {
+/** Extract and validate DSH's documented supervisor readiness signal. */
+export function parseWebUrlFromLine(output: string): string | null {
+  const match = URL_LINE_RE.exec(stripAnsi(output));
+  return match ? normalizeLoopbackUrl(match[1]) : null;
+}
+
+/**
+ * Accept only local, credential-free HTTP endpoints. The managed DSH server is
+ * intentionally loopback-only because it can execute code in the workspace.
+ */
+export function normalizeLoopbackUrl(input: string): string | null {
   try {
-    const u = new URL(url);
-    if (u.port) {
-      const n = Number(u.port);
-      return Number.isInteger(n) && n > 0 ? n : null;
-    }
-    return u.protocol === 'https:' ? 443 : 80;
+    const url = new URL(input.trim());
+    const host = url.hostname.toLowerCase();
+    if (url.protocol !== 'http:' || url.username || url.password) return null;
+    if (host !== '127.0.0.1' && host !== 'localhost' && host !== '[::1]') return null;
+    if (url.pathname !== '/' || url.search || url.hash) return null;
+    const port = portFromUrl(url.toString());
+    if (port === null) return null;
+    return `http://127.0.0.1:${port}`;
   } catch {
     return null;
   }
 }
 
-/**
- * Detect whether an HTML response belongs to the DeepSeek Harness web GUI.
- * The web shell is the only app that injects `window.__DSH_BOOT__`, so it is
- * a reliable marker for "this port serves DSH" (used both for readiness and
- * for attaching to an already-running instance).
- */
+export function portFromUrl(input: string): number | null {
+  try {
+    const url = new URL(input);
+    if (!url.port) return url.protocol === 'http:' ? 80 : url.protocol === 'https:' ? 443 : null;
+    const port = Number(url.port);
+    return Number.isInteger(port) && port > 0 && port <= 65535 ? port : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best available identity marker for explicitly connected external instances. */
 export function isDshPage(html: string): boolean {
   return html.includes('__DSH_BOOT__');
 }
 
-/**
- * A bind host of `0.0.0.0` cannot be used as a browser URL; probing and
- * opening must go through the loopback interface. (dsh itself rejects
- * `--host 0.0.0.0`, but stay defensive.)
- */
-export function browseHost(host: string): string {
-  return host === '0.0.0.0' || host === '::' || host === '' ? '127.0.0.1' : host;
-}
-
-/** Build the canonical GUI URL for a host/port pair. */
-export function buildUrl(host: string, port: number): string {
-  return `http://${browseHost(host)}:${port}`;
+export function buildLoopbackUrl(port: number): string {
+  return `http://127.0.0.1:${port}`;
 }

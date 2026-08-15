@@ -1,64 +1,75 @@
 import { describe, expect, it } from 'vitest';
-import { browseHost, buildUrl, isDshPage, parseWebUrlFromLine, portFromUrl } from '../parse';
+import {
+  buildLoopbackUrl,
+  isDshPage,
+  normalizeLoopbackUrl,
+  parseWebUrlFromLine,
+  portFromUrl,
+  stripAnsi,
+} from '../parse';
+import { ReadinessScanner } from '../readiness';
 
-describe('parseWebUrlFromLine', () => {
-  it('extracts the URL from the dsh readiness line', () => {
+describe('readiness output', () => {
+  it('extracts the canonical URL from the documented supervisor signal', () => {
     expect(parseWebUrlFromLine('dsh web: http://127.0.0.1:3080')).toBe('http://127.0.0.1:3080');
+    expect(
+      parseWebUrlFromLine('noise\ndsh web: http://127.0.0.1:43123 (LAN: http://192.168.1.5:43123)')
+    ).toBe('http://127.0.0.1:43123');
   });
 
-  it('extracts the loopback URL when a LAN address is appended', () => {
-    expect(parseWebUrlFromLine('dsh web: http://127.0.0.1:3080 (LAN: http://192.168.1.5:3080)')).toBe(
-      'http://127.0.0.1:3080'
+  it('handles ANSI styling and split UTF-8 process chunks', () => {
+    const scanner = new ReadinessScanner();
+    expect(scanner.write(Buffer.from('\u001b[32mdsh web: http://127.'))).toBeNull();
+    expect(scanner.write(Buffer.from('0.0.1:45678\u001b[0m\n'))).toBe('http://127.0.0.1:45678');
+    expect(stripAnsi('\u001b[31mhello\u001b[0m')).toBe('hello');
+  });
+
+  it('does not lose a readiness line before a very long later chunk', () => {
+    const scanner = new ReadinessScanner();
+    expect(scanner.write(`dsh web: http://127.0.0.1:9000\n${'x'.repeat(20_000)}`)).toBe(
+      'http://127.0.0.1:9000'
     );
   });
 
-  it('matches the line embedded in a larger chunk', () => {
-    const chunk = '[2026-08-14 12:00:00] plugin loaded\ndsh web: http://127.0.0.1:43123\nother output';
-    expect(parseWebUrlFromLine(chunk)).toBe('http://127.0.0.1:43123');
-  });
-
-  it('returns null for unrelated output', () => {
+  it('rejects unrelated or non-loopback readiness URLs', () => {
     expect(parseWebUrlFromLine('starting webserver…')).toBeNull();
-    expect(parseWebUrlFromLine('')).toBeNull();
+    expect(parseWebUrlFromLine('dsh web: https://127.0.0.1:3080')).toBeNull();
+    expect(parseWebUrlFromLine('dsh web: http://example.com:3080')).toBeNull();
   });
 });
 
-describe('portFromUrl', () => {
-  it('parses explicit ports', () => {
+describe('normalizeLoopbackUrl', () => {
+  it('canonicalizes supported local host spellings', () => {
+    expect(normalizeLoopbackUrl('http://localhost:3080/')).toBe('http://127.0.0.1:3080');
+    expect(normalizeLoopbackUrl('http://127.0.0.1:43123')).toBe('http://127.0.0.1:43123');
+    expect(normalizeLoopbackUrl('http://[::1]:8080/')).toBe('http://127.0.0.1:8080');
+  });
+
+  it.each([
+    'https://127.0.0.1:3080',
+    'http://0.0.0.0:3080',
+    'http://user:pass@127.0.0.1:3080',
+    'http://127.0.0.1:3080/path',
+    'not a url',
+  ])('rejects unsafe or malformed URL %s', (url) => {
+    expect(normalizeLoopbackUrl(url)).toBeNull();
+  });
+});
+
+describe('URL helpers', () => {
+  it('parses explicit and default ports', () => {
     expect(portFromUrl('http://127.0.0.1:3080')).toBe(3080);
-    expect(portFromUrl('http://127.0.0.1:43123/x?y=1')).toBe(43123);
-  });
-
-  it('derives default ports for absent ones', () => {
-    expect(portFromUrl('http://127.0.0.1/')).toBe(80);
-    expect(portFromUrl('https://127.0.0.1/')).toBe(443);
-  });
-
-  it('returns null for invalid input', () => {
+    expect(portFromUrl('http://127.0.0.1')).toBe(80);
+    expect(portFromUrl('https://localhost')).toBe(443);
     expect(portFromUrl('not a url')).toBeNull();
   });
-});
 
-describe('isDshPage', () => {
-  it('detects the __DSH_BOOT__ marker', () => {
-    expect(isDshPage('<html><script>window.__DSH_BOOT__ = {}</script></html>')).toBe(true);
+  it('builds loopback URLs', () => {
+    expect(buildLoopbackUrl(1234)).toBe('http://127.0.0.1:1234');
   });
 
-  it('rejects unrelated HTML', () => {
-    expect(isDshPage('<html><body>hello</body></html>')).toBe(false);
-    expect(isDshPage('')).toBe(false);
-  });
-});
-
-describe('browseHost / buildUrl', () => {
-  it('keeps a loopback host as-is', () => {
-    expect(browseHost('127.0.0.1')).toBe('127.0.0.1');
-    expect(buildUrl('127.0.0.1', 3080)).toBe('http://127.0.0.1:3080');
-  });
-
-  it('maps wildcard hosts to loopback for browsing', () => {
-    expect(browseHost('0.0.0.0')).toBe('127.0.0.1');
-    expect(browseHost('')).toBe('127.0.0.1');
-    expect(buildUrl('0.0.0.0', 3080)).toBe('http://127.0.0.1:3080');
+  it('detects the Web shell marker for explicit external connections', () => {
+    expect(isDshPage('<script>window.__DSH_BOOT__ = {}</script>')).toBe(true);
+    expect(isDshPage('<html>other app</html>')).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ export class Logger {
   private readonly channel: vscode.OutputChannel;
 
   constructor() {
-    this.channel = vscode.window.createOutputChannel('DeepSeek Harness');
+    this.channel = vscode.window.createOutputChannel('DeepSeek Harness Launcher');
   }
 
   /** Lifecycle messages get a timestamp prefix; raw process output is verbatim. */

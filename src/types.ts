@@ -1,69 +1,71 @@
 /**
- * Shared plain types. This module must stay free of `vscode` imports so the
- * logic modules can be unit-tested outside the extension host.
+ * Shared plain types. Keep this module free of `vscode` imports so lifecycle
+ * code can be exercised outside the extension host.
  */
 
-/** All extension settings, already resolved to concrete values. */
+export type StartupBehavior = 'manual' | 'start' | 'startAndOpen';
+export type OpenLocation = 'browser' | 'editor';
+export type ServerState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
+export type ServerOwnership = 'managed' | 'external';
+
+/** Settings that affect one managed DSH process. */
 export interface DshSettings {
-  /** Executable to spawn, e.g. `npx` (default) or an absolute path to `dsh`. */
-  command: string;
-  /** Arguments passed to the command; `--host`/`--port` are appended automatically. */
-  args: string[];
-  /** Web server bind host (dsh web --host). */
-  host: string;
-  /** Web server port (dsh web --port); 0 lets the OS pick a free port. */
+  /** npm package spec executed through npx. Pinned by default because DSH is a developer preview. */
+  packageSpec: string;
+  /** Listening port. Zero asks DSH/the OS for an unused port. */
   port: number;
-  /** Extra trailing dsh web arguments (--patch, --trusted-host, ...). */
-  extraArgs: string[];
-  /** Start the server automatically when VS Code starts. */
-  autoStart: boolean;
-  /** Open the GUI automatically once the server is ready. */
-  autoOpen: boolean;
-  /** How to open the GUI: system browser or an in-editor Webview panel. */
-  openMode: 'browser' | 'webview';
-  /** Seconds to wait for the server to become ready. */
+  /** Maximum time to wait for DSH's documented readiness line. */
   startupTimeout: number;
-  /** Kill the server process when VS Code exits (only if we started it). */
-  stopOnExit: boolean;
-  /** Working directory for the spawned process. */
-  workspace: string;
-  /** Extra environment variables merged over process.env. */
-  env: Record<string, string>;
+  /** What to do after this extension activates. */
+  startupBehavior: StartupBehavior;
+  /** Preferred UI surface for the main Open command. */
+  openLocation: OpenLocation;
+  /** Explicit process cwd. Empty means resolve it from the active VS Code workspace. */
+  workingDirectory: string;
+  /** Additional arguments owned by the DSH Web application. */
+  webArgs: string[];
+  /** Extra environment variables for the managed process. */
+  environment: Record<string, string>;
 }
 
+/** The DSH release this extension has been tested against. */
+export const TESTED_DSH_VERSION = '0.1.0-rc.6';
+
 export const DEFAULT_SETTINGS: DshSettings = {
-  command: 'npx',
-  args: ['--yes', '@deepseek-ai/dsh', 'web'],
-  host: '127.0.0.1',
-  port: 3080,
-  extraArgs: [],
-  autoStart: false,
-  autoOpen: true,
-  openMode: 'browser',
-  startupTimeout: 90,
-  stopOnExit: true,
-  workspace: '',
-  env: {},
+  packageSpec: `@deepseek-ai/dsh@${TESTED_DSH_VERSION}`,
+  port: 0,
+  startupTimeout: 120,
+  startupBehavior: 'manual',
+  openLocation: 'browser',
+  workingDirectory: '',
+  webArgs: [],
+  environment: {},
 };
 
-/** Lifecycle state of the server as observed by this extension. */
-export type ServerState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
-
-/** Immutable state snapshot published to listeners. */
+/** Immutable lifecycle view published to the VS Code adapter. */
 export interface ServerSnapshot {
   state: ServerState;
-  /** Canonical GUI URL once known (may change on restart). */
   url?: string;
-  /** True when this extension spawned the process (vs. attached to an existing server). */
-  owned: boolean;
-  /** True when the server was already running before we started it. */
-  attached: boolean;
-  /** Human-readable error description when state === 'error'. */
+  ownership?: ServerOwnership;
+  /** Working directory of a managed instance. Absent for external connections. */
+  cwd?: string;
+  /** Human-readable failure when state is `error`. */
   error?: string;
 }
 
-/** Result of a successful start. */
 export interface StartResult {
-  kind: 'started' | 'attached' | 'already-running';
+  kind: 'started' | 'already-running';
   url: string;
+}
+
+export interface ConnectResult {
+  kind: 'connected' | 'already-running';
+  url: string;
+}
+
+export interface LaunchRequest {
+  settings: DshSettings;
+  cwd: string;
+  /** Absolute npx executable resolved before switching into the workspace cwd. */
+  npxPath: string;
 }
