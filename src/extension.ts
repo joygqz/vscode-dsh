@@ -8,6 +8,7 @@ import { isPortInUse } from './http';
 import { Logger } from './output';
 import { normalizeLoopbackUrl, portFromUrl } from './parse';
 import { checkNodeRuntime, type NodeRuntime } from './runtime';
+import { migrateLegacyDshHome } from './storage';
 import {
   DshServerManager,
   isCancellationError,
@@ -43,6 +44,7 @@ class ExtensionApp {
   private readonly statusItem: vscode.StatusBarItem;
   private readonly manager: DshServerManager;
   private readonly dshHome: string;
+  private readonly legacyDshHome?: string;
   private readonly runtimeCache = new Map<string, Promise<NodeRuntime>>();
   private readonly openPromises = new Map<OpenLocation, Promise<void>>();
 
@@ -62,10 +64,13 @@ class ExtensionApp {
   private disposed = false;
 
   constructor(context: vscode.ExtensionContext) {
-    // Workspace-scoped when a workspace is open so each workspace keeps its
-    // own models, sessions, and settings; empty windows fall back to global
-    // storage and are still protected by the single-writer lease.
-    this.dshHome = context.storageUri?.fsPath ?? context.globalStorageUri.fsPath;
+    // DSH owns model credentials, sessions, and application settings beneath
+    // DSH_HOME. Keep that home global to the extension so changing projects
+    // never creates a fresh application profile or loses configured API keys.
+    this.dshHome = context.globalStorageUri.fsPath;
+    if (context.storageUri && context.storageUri.fsPath !== this.dshHome) {
+      this.legacyDshHome = context.storageUri.fsPath;
+    }
     this.manager = new DshServerManager({
       log: (message, kind) => this.logger.log(message, kind),
       onChanged: (snapshot) => this.onStateChanged(snapshot),
@@ -113,6 +118,17 @@ class ExtensionApp {
 
   async initialize(): Promise<void> {
     this.logger.log('DeepSeek Harness Launcher extension activated', 'info');
+    if (this.legacyDshHome) {
+      try {
+        if (await migrateLegacyDshHome(this.legacyDshHome, this.dshHome)) {
+          this.logger.log('Migrated the current workspace DSH profile to shared global storage', 'info');
+        }
+      } catch (error) {
+        const message = `Could not migrate the previous workspace DSH profile: ${messageOf(error)}`;
+        this.logger.log(message, 'info');
+        void vscode.window.showWarningMessage(`${message}. The previous data was left untouched.`);
+      }
+    }
     await vscode.workspace.fs.createDirectory(vscode.Uri.file(this.dshHome));
     await this.publish(this.lastSnapshot);
     const behavior = readSettings().startupBehavior;

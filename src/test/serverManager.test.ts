@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PortCheckFn, ProbeFn, ProbeResult } from '../http';
+import { HomeLeaseConflictError, type HomeLeaseMetadata } from '../homeLease';
 import {
   DshServerManager,
   PortConflictError,
@@ -72,6 +73,19 @@ function request(
     npxPath: 'C:\\Program Files\\nodejs\\npx.cmd',
     homeDirectory,
   };
+}
+
+function leaseConflict(port?: number): HomeLeaseConflictError {
+  const metadata: HomeLeaseMetadata = {
+    version: 1,
+    token: 'shared-owner-token',
+    extensionHostPid: 1234,
+    childPid: 5678,
+    ...(port === undefined ? {} : { port }),
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+  return new HomeLeaseConflictError('The shared application is already running', metadata);
 }
 
 function isTaskkillCommand(command: string): boolean {
@@ -178,6 +192,54 @@ describe('managed lifecycle', () => {
     await h.manager.stop();
     expect(release).toHaveBeenCalledTimes(1);
     expect(h.manager.getSnapshot().state).toBe('stopped');
+  });
+
+  it('reuses the running instance that owns the shared data directory', async () => {
+    const acquireLease = vi.fn(async () => {
+      throw leaseConflict(45678);
+    });
+    const h = setup({
+      acquireLease,
+      probe: async (url) => ({
+        reachable: url === 'http://127.0.0.1:45678',
+        isDsh: url === 'http://127.0.0.1:45678',
+      }),
+    });
+
+    await expect(h.manager.start(request({}, '/tmp/second-project', '/data/vscode-dsh'))).resolves.toEqual({
+      kind: 'already-running',
+      url: 'http://127.0.0.1:45678',
+    });
+    expect(acquireLease).toHaveBeenCalledTimes(1);
+    expect(managedChildren(h)).toHaveLength(0);
+    expect(h.manager.getSnapshot()).toEqual({
+      state: 'running',
+      url: 'http://127.0.0.1:45678',
+      ownership: 'external',
+    });
+  });
+
+  it('waits for a concurrently starting shared instance to publish its port', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    let attempts = 0;
+    const acquireLease = vi.fn(async () => {
+      attempts += 1;
+      throw leaseConflict(attempts === 1 ? undefined : 45679);
+    });
+    const h = setup({
+      acquireLease,
+      probe: async () => ({ reachable: true, isDsh: true }),
+    });
+
+    const pending = h.manager.start(request({ startupTimeout: 5 }, '/tmp/second-project', '/data/vscode-dsh'));
+    await vi.advanceTimersByTimeAsync(200);
+
+    await expect(pending).resolves.toEqual({
+      kind: 'already-running',
+      url: 'http://127.0.0.1:45679',
+    });
+    expect(acquireLease).toHaveBeenCalledTimes(2);
+    expect(managedChildren(h)).toHaveLength(0);
   });
 
   it('recognizes a split readiness signal written to stderr', async () => {

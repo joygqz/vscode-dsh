@@ -80,7 +80,7 @@ interface LockSnapshot {
 class RetryAcquireError extends Error {}
 
 /**
- * An exclusive, workspace-scoped lease for a DSH_HOME directory.
+ * An exclusive lease for a DSH_HOME directory.
  *
  * Keep the returned object for the lifetime of the managed DSH process. The
  * token is deliberately instance-specific: another extension instance in the
@@ -290,7 +290,7 @@ async function assertSnapshotIsStale(
     const age = Math.max(0, options.now().getTime() - snapshot.modifiedAtMs);
     if (age < options.initializationGraceMs) {
       throw new HomeLeaseConflictError(
-        'The DeepSeek Harness data directory lock is being initialized. Try again later; if the problem persists, close other VS Code windows using this workspace.'
+        'The DeepSeek Harness data directory lock is being initialized. Try again later; if the problem persists, close other VS Code windows using this application profile.'
       );
     }
     return;
@@ -313,7 +313,7 @@ async function assertSnapshotIsStale(
 
   if (active.length > 0) {
     throw new HomeLeaseConflictError(
-      `The DeepSeek Harness data directory for this workspace is still in use (${active.join(', ')}). Stop the server in the original VS Code window and try again.`,
+      `The shared DeepSeek Harness application is already in use (${active.join(', ')}).`,
       metadata
     );
   }

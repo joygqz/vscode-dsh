@@ -60,9 +60,9 @@ The status bar shows: shield + `DSH` (untrusted), `DSH` (not running), `DSH Work
 
 ## Managed and external servers
 
-- A managed server is started by the extension. Its data lives in VS Code's workspace-scoped storage (global storage in empty windows), and a single-writer lease keeps multiple windows from writing to the same data directory concurrently. "Stop Server" waits for the session to clean up, then force-ends it and confirms the port was released.
+- A managed server is started by the extension. Its data lives in the extension's global storage, so model credentials, settings, and sessions are shared across projects. A single-writer lease keeps the profile safe; another VS Code window automatically connects to the running shared instance instead of starting a competing process. "Stop Server" waits for the session to clean up, then force-ends it and confirms the port was released.
 - An external server can only be connected explicitly through an HTTP loopback address in this environment (for example `http://127.0.0.1:3080`). It supports open, copy, refresh, and disconnect only; the extension never stops it, and it keeps its own data directory.
-- Each window manages one server; different workspaces manage their own DSH processes.
+- All projects in the same local or remote VS Code environment use one DSH application profile and reuse its running instance. Local, SSH, WSL, and container environments retain separate global storage because they run on different machines/filesystems.
 
 ## Remote, WSL, and containers
 
@@ -75,7 +75,7 @@ DSH only listens on `127.0.0.1`, but forwarding visibility is controlled by VS C
 - Use Harness only with projects you fully trust. `workingDirectory` and any added directories may be read, written, and executed by the agent. Workspace Trust is not a filesystem sandbox.
 - The extension always passes `--host 127.0.0.1`, refuses to let users override the listen address, and does not support patches that would rewrite this boundary.
 - The upstream Web service has no authentication or TLS suitable for the public internet. The first startup downloads a pinned top-level DSH version from npm; transitive dependencies may still change.
-- API keys, model configuration, and sessions are written by DSH to workspace-specific storage. This extension does not read API keys and contains no telemetry.
+- API keys, model configuration, and sessions are written by DSH to the extension's global application profile and are shared across projects in the same environment. This extension does not read API keys and contains no telemetry.
 
 ## Troubleshooting
 

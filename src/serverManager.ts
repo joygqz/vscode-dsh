@@ -1,7 +1,7 @@
 import { spawn, type SpawnOptions } from 'node:child_process';
 import { win32 } from 'node:path';
 import { buildSpawnSpec, formatSpawnSpec, validateLaunchSettings } from './args';
-import { acquireHomeLease } from './homeLease';
+import { acquireHomeLease, HomeLeaseConflictError } from './homeLease';
 import { isPortInUse, probeDshUrl, type PortCheckFn, type ProbeFn } from './http';
 import { mergeEnvironment } from './environment';
 import { normalizeLoopbackUrl, portFromUrl } from './parse';
@@ -75,6 +75,7 @@ interface Run {
 
 const PORT_CHECK_TIMEOUT_MS = 600;
 const CONNECT_TIMEOUT_MS = 3000;
+const SHARED_INSTANCE_RETRY_MS = 200;
 // Upstream grants itself 5 seconds for graceful disposal. Leave scheduling margin.
 const STOP_GRACE_MS = 6500;
 const FORCE_KILL_WAIT_MS = 2000;
@@ -293,6 +294,20 @@ export class DshServerManager {
 
     try {
       validateLaunchSettings(settings);
+      if (request.homeDirectory) {
+        const sharedUrl = await this.acquireLeaseOrFindSharedInstance(
+          run,
+          request.homeDirectory,
+          settings.startupTimeout
+        );
+        this.assertCurrent(run);
+        if (sharedUrl) {
+          run.url = sharedUrl;
+          this.setSnapshot({ state: 'running', url: sharedUrl, ownership: 'external' });
+          this.deps.log(`Using the shared DeepSeek Harness instance: ${sharedUrl}`, 'info');
+          return { kind: 'already-running', url: sharedUrl };
+        }
+      }
       if (settings.port > 0) {
         const occupied = await awaitAbortable(
           this.portCheckImpl(settings.port, PORT_CHECK_TIMEOUT_MS, run.abort.signal),
@@ -304,9 +319,6 @@ export class DshServerManager {
         }
       }
 
-      if (request.homeDirectory) {
-        run.lease = await awaitAbortable(this.acquireLease(request.homeDirectory), run.abort.signal);
-      }
       this.assertCurrent(run);
       const spec = buildSpawnSpec(settings, request.npxPath, this.platform);
       let child: ChildLike;
@@ -395,6 +407,46 @@ export class DshServerManager {
         }
       }
       throw normalized;
+    }
+  }
+
+  /**
+   * Acquire the global application profile, or attach to the window that
+   * already owns it. A second window may arrive while the first is still
+   * starting, before its listening port has been written to the lease, so
+   * keep checking for at most the configured startup budget.
+   */
+  private async acquireLeaseOrFindSharedInstance(
+    run: Run,
+    homeDirectory: string,
+    timeoutSeconds: number
+  ): Promise<string | undefined> {
+    const deadline = Date.now() + timeoutSeconds * 1000;
+    let lastConflict: HomeLeaseConflictError | undefined;
+
+    while (true) {
+      try {
+        run.lease = await awaitAbortable(this.acquireLease(homeDirectory), run.abort.signal);
+        return undefined;
+      } catch (error) {
+        if (!(error instanceof HomeLeaseConflictError)) throw error;
+        lastConflict = error;
+
+        const port = error.metadata?.port;
+        if (port) {
+          const url = `http://127.0.0.1:${port}`;
+          const result = await awaitAbortable(
+            this.probeImpl(url, CONNECT_TIMEOUT_MS, run.abort.signal),
+            run.abort.signal
+          );
+          this.assertCurrent(run);
+          if (result.reachable && result.isDsh) return url;
+        }
+
+        if (Date.now() >= deadline) throw lastConflict;
+        await awaitAbortable(delay(SHARED_INSTANCE_RETRY_MS), run.abort.signal);
+        this.assertCurrent(run);
+      }
     }
   }
 
