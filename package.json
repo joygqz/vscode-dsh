@@ -2,7 +2,7 @@
   "name": "vscode-dsh",
   "displayName": "DeepSeek Harness Launcher",
   "description": "Start, open, and manage the DeepSeek Harness Web UI from VS Code.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "joygqz",
   "preview": true,
   "repository": {
