@@ -19,7 +19,7 @@ Harness can read and write files and run commands: the extension does not start 
 
 Search for **DeepSeek Harness Launcher** in the Extensions view (`Ctrl/Cmd+Shift+X`), or install the `.vsix` from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=joygqz.vscode-dsh), [Open VSX](https://open-vsx.org/extension/joygqz/vscode-dsh), or [GitHub Releases](https://github.com/joygqz/vscode-dsh/releases).
 
-## Quick start
+## Quick Start
 
 1. Open and trust a project folder, then click `DSH` in the status bar or run `DeepSeek Harness Launcher: Open`.
 2. The first run fetches DSH through npm. The status bar shows `DSH Working…`; click it to cancel or view the output.
@@ -27,7 +27,7 @@ Search for **DeepSeek Harness Launcher** in the Extensions view (`Ctrl/Cmd+Shift
 
 `workingDirectory` is DSH's launch directory and default workspace context, which affects `AGENTS.md`, `CLAUDE.md`, cwd `.env`, and similar files.
 
-## Commands and status bar
+## Commands
 
 `Open` is the primary command: it starts the server when it is not running and opens it directly when it is.
 
@@ -48,15 +48,15 @@ The status bar shows: shield + `DSH` (untrusted), `DSH` (not running), `DSH Work
 
 ## Settings
 
-| Setting | Default | Description |
+| Setting | Description | Default |
 | --- | --- | --- |
-| `startupBehavior` | `manual` | `manual` start on demand; `start` start silently when VS Code opens; `startAndOpen` start and open |
-| `openLocation` | `browser` | Use the system `browser` or VS Code's `editor` for the primary command |
-| `port` | `0` | Pick a free port automatically. When a fixed port is taken, the extension does not attach to other instances |
-| `startupTimeout` | `120` | Maximum seconds to wait for DSH to become ready |
-| `workingDirectory` | empty | Launch and default workspace context; supports absolute paths, relative paths, `~`, and `${workspaceFolder}`. Relative paths require an open workspace folder |
-| `webArgs` | `[]` | Extra DSH Web arguments (must not include `--host`, `--port`, or `--patch`) |
-| `environment` | `{}` | Process environment variables; may override `PATH`, cannot override `DSH_HOME` |
+| `vscode-dsh.startupBehavior` | `manual` start on demand; `start` start silently when VS Code opens; `startAndOpen` start and open | `manual` |
+| `vscode-dsh.openLocation` | Use the system `browser` or VS Code's `editor` for the primary command | `browser` |
+| `vscode-dsh.port` | Pick a free port automatically. When a fixed port is taken, the extension does not attach to other instances | `0` |
+| `vscode-dsh.startupTimeout` | Maximum seconds to wait for DSH to become ready | `120` |
+| `vscode-dsh.workingDirectory` | Launch and default workspace context; supports absolute paths, relative paths, `~`, and `${workspaceFolder}`. Relative paths require an open workspace folder | empty |
+| `vscode-dsh.webArgs` | Extra DSH Web arguments (must not include `--host`, `--port`, or `--patch`) | `[]` |
+| `vscode-dsh.environment` | Process environment variables; may override `PATH`, cannot override `DSH_HOME` | `{}` |
 
 ## Managed and external servers
 
@@ -91,7 +91,24 @@ DSH only listens on `127.0.0.1`, but forwarding visibility is controlled by VS C
 
 **The server exits unexpectedly**: hover the error status to see why and pick a recovery action. A managed process must confirm cleanup before restart is allowed.
 
-## Feedback and license
+## Development
+
+Use Node.js 24 and the pnpm version declared in `package.json`.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm compile
+pnpm verify
+pnpm ext:package
+```
+
+`compile` creates a development bundle; `verify` runs the available static checks and unit tests; `build` verifies and creates the production bundle. `ext:package` builds a VSIX through the same verification gate used in CI. Use `watch` during development.
+
+See [Architecture](docs/ARCHITECTURE.md) for module boundaries and lifecycle rules, and [Contributing](CONTRIBUTING.md) for validation and release conventions.
+
+Maintained by **Quincy Zhang**. The publisher ID remains `joygqz`; the Marketplace publisher display name is managed separately from source code.
+
+## Feedback and License
 
 - Extension issues: [joygqz/vscode-dsh Issues](https://github.com/joygqz/vscode-dsh/issues)
 - DSH usage questions: [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)

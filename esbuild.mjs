@@ -1,5 +1,6 @@
 import esbuild from 'esbuild';
 
+const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
 
 const options = {
@@ -10,7 +11,8 @@ const options = {
   target: 'node18',
   outfile: 'dist/extension.cjs',
   external: ['vscode'],
-  sourcemap: watch ? 'inline' : false,
+  minify: production,
+  sourcemap: !production,
   logLevel: 'info',
 };
 
