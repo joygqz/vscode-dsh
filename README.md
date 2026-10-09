@@ -2,9 +2,18 @@
 
 [![Visual Studio Marketplace](https://img.shields.io/visual-studio-marketplace/v/joygqz.vscode-dsh?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=joygqz.vscode-dsh)
 [![Open VSX](https://img.shields.io/open-vsx/v/joygqz/vscode-dsh?label=Open%20VSX)](https://open-vsx.org/extension/joygqz/vscode-dsh)
-[![GitHub release](https://img.shields.io/github/v/release/joygqz/vscode-dsh?label=GitHub%20Release)](https://github.com/joygqz/vscode-dsh/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/joygqz/vscode-dsh?label=GitHub%20Release)](https://github.com/joygqz/vscode-dsh/releases)
 
 Start, open, and manage the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web UI from VS Code with one click. The extension checks the environment, fetches DSH through npm, picks a safe port, waits for readiness, and cleans up the process on stop.
+
+## Features
+
+- **One-click access** — start and open Harness from the status bar or Command Palette.
+- **Environment checks** — validate Node.js, npx, the working directory, and launch settings.
+- **Server lifecycle** — start, stop, restart, cancel, or connect to an existing server.
+- **Shared profile** — reuse model settings and sessions across projects in the same environment.
+- **Remote access** — support local, SSH, WSL, Dev Container, and Codespaces workspaces.
+- **Browser or editor** — open Harness in the system browser or a VS Code webview.
 
 ## Prerequisites
 
@@ -17,7 +26,7 @@ Harness can read and write files and run commands: the extension does not start 
 
 ## Installation
 
-Search for **DeepSeek Harness Launcher** in the Extensions view (`Ctrl/Cmd+Shift+X`), or install the `.vsix` from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=joygqz.vscode-dsh), [Open VSX](https://open-vsx.org/extension/joygqz/vscode-dsh), or [GitHub Releases](https://github.com/joygqz/vscode-dsh/releases).
+Search for **DeepSeek Harness Launcher** in the Extensions view (`Ctrl/Cmd+Shift+X`), or visit [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=joygqz.vscode-dsh) or [Open VSX](https://open-vsx.org/extension/joygqz/vscode-dsh). You can also install a `.vsix` from [GitHub Releases](https://github.com/joygqz/vscode-dsh/releases) using **Extensions: Install from VSIX…**.
 
 ## Quick Start
 
@@ -29,22 +38,18 @@ Search for **DeepSeek Harness Launcher** in the Extensions view (`Ctrl/Cmd+Shift
 
 ## Commands
 
-`Open` is the primary command: it starts the server when it is not running and opens it directly when it is.
-
-| Command | Purpose |
+| Command | Description |
 | --- | --- |
-| `Open` | Start if needed, or open the running UI |
-| `Start Server` | Start the server without opening the page |
-| `Open in Browser` / `Open in VS Code` | Start if needed, then open in the chosen location |
-| `Stop Server` | Stop the hosted server; run it again if cleanup failed |
-| `Restart Server` | Apply new settings; reuses the selected directory when `workingDirectory` is unchanged |
-| `Cancel Current Operation` | Cancel an environment check, startup, restart, or connection in progress |
-| `Connect to Running Server…` | Connect to an existing DSH in this environment |
-| `Disconnect External Server` | Stop tracking an external DSH without stopping its process |
-| `Copy Access URL` | Copy the full address a client can use |
-| `Show Output` / `Open Settings` | Open the output panel or extension settings |
-
-The status bar shows: shield + `DSH` (untrusted), `DSH` (not running), `DSH Working…` (click to cancel or view output), `DSH Stopping…` (click for output), `DSH: port` (hosted by this window), link icon + `DSH: port` (external server), `DSH: port*` (settings changed; click to restart and apply), or error icon + `DSH` (hover for details and click for recovery actions).
+| `DeepSeek Harness Launcher: Open` | Start if needed, or open the running UI |
+| `DeepSeek Harness Launcher: Start Server` | Start the server without opening the page |
+| `DeepSeek Harness Launcher: Open in Browser` / `DeepSeek Harness Launcher: Open in VS Code` | Start if needed, then open in the chosen location |
+| `DeepSeek Harness Launcher: Stop Server` | Stop the hosted server; run it again if cleanup failed |
+| `DeepSeek Harness Launcher: Restart Server` | Apply new settings; reuses the selected directory when `workingDirectory` is unchanged |
+| `DeepSeek Harness Launcher: Cancel Current Operation` | Cancel an environment check, startup, restart, or connection in progress |
+| `DeepSeek Harness Launcher: Connect to Running Server…` | Connect to an existing DSH in this environment |
+| `DeepSeek Harness Launcher: Disconnect External Server` | Stop tracking an external DSH without stopping its process |
+| `DeepSeek Harness Launcher: Copy Access URL` | Copy the full address a client can use |
+| `DeepSeek Harness Launcher: Show Output` / `DeepSeek Harness Launcher: Open Settings` | Open the output panel or extension settings |
 
 ## Settings
 
@@ -54,23 +59,31 @@ The status bar shows: shield + `DSH` (untrusted), `DSH` (not running), `DSH Work
 | `vscode-dsh.openLocation` | Use the system `browser` or VS Code's `editor` for the primary command | `browser` |
 | `vscode-dsh.port` | Pick a free port automatically. When a fixed port is taken, the extension does not attach to other instances | `0` |
 | `vscode-dsh.startupTimeout` | Maximum seconds to wait for DSH to become ready | `120` |
-| `vscode-dsh.workingDirectory` | Launch and default workspace context; supports absolute paths, relative paths, `~`, and `${workspaceFolder}`. Relative paths require an open workspace folder | empty |
+| `vscode-dsh.workingDirectory` | Launch and default workspace context; supports absolute paths, relative paths, `~`, and `${workspaceFolder}`. Relative paths require an open workspace folder | `""` |
 | `vscode-dsh.webArgs` | Extra DSH Web arguments (must not include `--host`, `--port`, or `--patch`) | `[]` |
 | `vscode-dsh.environment` | Process environment variables; may override `PATH`, cannot override `DSH_HOME` | `{}` |
 
-## Managed and external servers
+## Usage
+
+`DeepSeek Harness Launcher: Open` is the primary command: it starts the server when it is not running and opens it directly when it is.
+
+### Status Bar
+
+The status bar shows: shield + `DSH` (untrusted), `DSH` (not running), `DSH Working…` (click to cancel or view output), `DSH Stopping…` (click for output), `DSH: port` (hosted by this window), link icon + `DSH: port` (external server), `DSH: port*` (settings changed; click to restart and apply), or error icon + `DSH` (hover for details and click for recovery actions).
+
+### Managed and External Servers
 
 - A managed server is started by the extension. Its data lives in the extension's global storage, so model credentials, settings, and sessions are shared across projects. A single-writer lease keeps the profile safe; another VS Code window automatically connects to the running shared instance instead of starting a competing process. "Stop Server" waits for the session to clean up, then force-ends it and confirms the port was released.
 - An external server can only be connected explicitly through an HTTP loopback address in this environment (for example `http://127.0.0.1:3080`). It supports open, copy, refresh, and disconnect only; the extension never stops it, and it keeps its own data directory.
 - All projects in the same local or remote VS Code environment use one DSH application profile and reuse its running instance. Local, SSH, WSL, and container environments retain separate global storage because they run on different machines/filesystems.
 
-## Remote, WSL, and containers
+### Remote, WSL, and Containers
 
 Node/npx, `workingDirectory`, relative paths, environment variables, and connection addresses are resolved in the environment where the workspace lives. The system browser is opened through `openExternal`, which resolves localhost forwarding; the built-in page and "Copy Access URL" use `asExternalUri`. With an automatic port, the exact non-loopback authority returned by VS Code is added to the DSH Host allow-list; if the forwarded authority cannot be determined, the extension fails safely.
 
 DSH only listens on `127.0.0.1`, but forwarding visibility is controlled by VS Code, Codespaces, or Dev Tunnels. Keep forwarded ports **Private** and do not share forwarded URLs.
 
-## Security
+## Security and Privacy
 
 - Use Harness only with projects you fully trust. `workingDirectory` and any added directories may be read, written, and executed by the agent. Workspace Trust is not a filesystem sandbox.
 - The extension always passes `--host 127.0.0.1`, refuses to let users override the listen address, and does not support patches that would rewrite this boundary.
@@ -79,17 +92,14 @@ DSH only listens on `127.0.0.1`, but forwarding visibility is controlled by VS C
 
 ## Troubleshooting
 
-**Node.js / npx not found or unsupported version**: run `node --version` in the extension's runtime environment; Remote uses the remote Node. The integrated terminal may be initialized by nvm while the Extension Host's `PATH` is not synced; provide an absolute `PATH` in `vscode-dsh.environment`.
-
-**First startup is slow**: `npx` downloads DSH and its dependencies. Click "Show Output" in the status bar or increase `startupTimeout`.
-
-**Fixed port already in use**: change back to `port: 0`. If that port is a DSH instance you started yourself, use "Connect to Running Server…".
-
-**The page opens but sessions do not work**: configure a model under `Settings → Models`, then add and select a directory under `Choose workspace`; see the [official Web UI guide](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/index.md).
-
-**The built-in page is blank or limited**: use `Open in Browser` instead, and check the output panel and the Private setting for Remote port forwarding.
-
-**The server exits unexpectedly**: hover the error status to see why and pick a recovery action. A managed process must confirm cleanup before restart is allowed.
+| Problem | What to check |
+| --- | --- |
+| Node.js / npx not found or unsupported version | run `node --version` in the extension's runtime environment; Remote uses the remote Node. The integrated terminal may be initialized by nvm while the Extension Host's `PATH` is not synced; provide an absolute `PATH` in `vscode-dsh.environment`. |
+| First startup is slow | `npx` downloads DSH and its dependencies. Click "Show Output" in the status bar or increase `startupTimeout`. |
+| Fixed port already in use | change back to `port: 0`. If that port is a DSH instance you started yourself, use "Connect to Running Server…". |
+| The page opens but sessions do not work | configure a model under `Settings → Models`, then add and select a directory under `Choose workspace`; see the [official Web UI guide](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/index.md). |
+| The built-in page is blank or limited | use `Open in Browser` instead, and check the output panel and the Private setting for Remote port forwarding. |
+| The server exits unexpectedly | hover the error status to see why and pick a recovery action. A managed process must confirm cleanup before restart is allowed. |
 
 ## Development
 
@@ -106,10 +116,13 @@ pnpm ext:package
 
 See [Architecture](docs/ARCHITECTURE.md) for module boundaries and lifecycle rules, and [Contributing](CONTRIBUTING.md) for validation and release conventions.
 
-Maintained by **Quincy Zhang**. The publisher ID remains `joygqz`; the Marketplace publisher display name is managed separately from source code.
+## Feedback
 
-## Feedback and License
+- Report bugs or request features: [GitHub Issues](https://github.com/joygqz/vscode-dsh/issues)
+- Harness usage questions: [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)
 
-- Extension issues: [joygqz/vscode-dsh Issues](https://github.com/joygqz/vscode-dsh/issues)
-- DSH usage questions: [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)
-- License: [MIT](LICENSE)
+## License
+
+[MIT](LICENSE)
+
+Maintained by **Quincy Zhang**.
