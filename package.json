@@ -87,7 +87,7 @@
       },
       {
         "command": "vscode-dsh.connect",
-        "title": "Connect to Running Server…",
+        "title": "Connect to Running Server\u2026",
         "category": "DeepSeek Harness Launcher",
         "icon": "$(plug)",
         "enablement": "vscode-dsh.state == stopped || vscode-dsh.state == error && !vscode-dsh.managed"
@@ -296,22 +296,26 @@
           },
           "scope": "window",
           "order": 110,
-          "markdownDescription": "Advanced: environment variables used to check Node/npx and launch the managed DSH; may override PATH. DSH_HOME is shared across all projects by the extension and a same-named value here is ignored. Configure API keys in DSH's Settings → Models; they remain available when you switch projects."
+          "markdownDescription": "Advanced: environment variables used to check Node/npx and launch the managed DSH; may override PATH. DSH_HOME is shared across all projects by the extension and a same-named value here is ignored. Configure API keys in DSH's Settings \u2192 Models; they remain available when you switch projects."
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "node esbuild.mjs",
-    "build": "node esbuild.mjs",
+    "vscode:prepublish": "pnpm run build",
+    "build": "pnpm run verify && node esbuild.mjs --production",
     "watch": "node esbuild.mjs --watch",
-    "compile": "tsc -p ./tsconfig.json --noEmit",
+    "compile": "pnpm run check-types && node esbuild.mjs",
     "test": "vitest run",
-    "check": "tsc -p ./tsconfig.json --noEmit && vitest run && node esbuild.mjs",
-    "package": "vsce package",
-    "ext:package": "vsce package",
-    "ext:publish": "vsce publish",
-    "release": "bumpp -a"
+    "check": "pnpm run build",
+    "package": "pnpm run build",
+    "ext:package": "vsce package --no-dependencies --out vscode-dsh.vsix",
+    "ext:publish": "vsce publish --no-dependencies --skip-duplicate",
+    "release": "bumpp -a --git-check --execute \"pnpm ext:package\"",
+    "check-types": "tsc --noEmit",
+    "test:watch": "vitest",
+    "verify": "pnpm run check-types && pnpm run test",
+    "release:check": "node scripts/verify-release.mjs"
   },
   "packageManager": "pnpm@11.18.0",
   "devDependencies": {
@@ -321,6 +325,9 @@
     "bumpp": "^12.2.1",
     "esbuild": "^0.25.0",
     "typescript": "^5.5.4",
-    "vitest": "^3.0.5"
-  }
+    "vitest": "^3.0.5",
+    "ovsx": "1.1.1",
+    "changelogithub": "14.0.0"
+  },
+  "author": "Quincy Zhang"
 }

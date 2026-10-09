@@ -1,64 +1,98 @@
-name: Release
+name: Publish Extension
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish or retry
+        required: true
+        type: string
+
+concurrency:
+  group: publish-extension
+  cancel-in-progress: false
 
 jobs:
-  release:
+  publish-extension:
     permissions:
       contents: write
 
-    env:
-      # The secrets context cannot be used in step-level if conditions, so booleanize it in job-level env first.
-      HAS_VSCE_PAT: ${{ secrets.VSCE_PAT != '' }}
-      HAS_OVSX_PAT: ${{ secrets.OVSX_PAT != '' }}
-
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout release tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 1
+
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          path: release-source
           fetch-depth: 0
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up pnpm and Node.js
+        uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@24
+          cache: true
+          install: false
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Type-check
-        run: pnpm compile
-
-      - name: Run unit tests
-        run: pnpm test
-
-      - name: Build and package .vsix
-        run: pnpm package
-
-      - name: Create GitHub release (changelogithub)
-        run: npx changelogithub
+      - name: Validate publishing credentials
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload .vsix to the release
-        run: gh release upload "${{ github.ref_name }}" *.vsix --clobber
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      # Optional: when both VSCE_PAT and OVSX_PAT are configured, publish to both marketplaces automatically.
-      # Publishing also requires your own publisher and repository in package.json.
-      - name: Publish to VS Code Marketplace & Open VSX
-        if: env.HAS_VSCE_PAT == 'true' && env.HAS_OVSX_PAT == 'true'
-        run: npx vsxpub --no-dependencies
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ] || [ -z "$OVSX_PAT" ]; then
+            echo "::error::VSCE_PAT and OVSX_PAT repository secrets are required"
+            exit 1
+          fi
+
+      - name: Install release tooling
+        run: pnpm install --frozen-lockfile
+
+      - name: Install tagged source dependencies
+        run: pnpm --dir release-source install --frozen-lockfile
+
+      - name: Validate release tag
+        working-directory: release-source
+        run: node ../scripts/verify-release.mjs "$RELEASE_TAG"
+
+      - name: Test tagged source
+        working-directory: release-source
+        run: pnpm verify
+
+      - name: Package tagged source
+        working-directory: release-source
+        run: ../node_modules/.bin/vsce package --no-dependencies --out vscode-dsh.vsix
+
+      - name: Publish to Visual Studio Marketplace
+        working-directory: release-source
+        run: ../node_modules/.bin/vsce publish --packagePath vscode-dsh.vsix --no-dependencies --skip-duplicate
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX Registry
+        working-directory: release-source
+        run: ../node_modules/.bin/ovsx publish vscode-dsh.vsix --no-dependencies --skip-duplicate
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
+      - name: Create or update GitHub release
+        working-directory: release-source
+        run: ../node_modules/.bin/changelogithub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload .vsix to GitHub release
+        working-directory: release-source
+        run: gh release upload "$RELEASE_TAG" vscode-dsh.vsix --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
